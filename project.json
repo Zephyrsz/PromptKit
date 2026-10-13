@@ -1,0 +1,42 @@
+{
+  "name": "PromptKit",
+  "version": "1.0.0",
+  "description": "iOS app for Prompt management",
+  "platform": "iOS 16.0+",
+  "language": "Swift",
+  "framework": "SwiftUI",
+  "backend": {
+    "api_base": "http://127.0.0.1:3001/api",
+    "endpoints": {
+      "prompts": "/prompts",
+      "tags": "/tags"
+    }
+  },
+  "features": [
+    "Template management",
+    "Quick access shortcuts",
+    "Tag management",
+    "Variable substitution",
+    "Favorite templates",
+    "Search and filter",
+    "Export data",
+    "iCloud sync"
+  ],
+  "design": {
+    "theme": "dark",
+    "colors": {
+      "surface1": "#05070C",
+      "surface2": "#0A0D12",
+      "surface3": "#0F131C",
+      "surface4": "#161D2B",
+      "surface5": "#1E2636",
+      "accent": "#38BDF8",
+      "accentMuted": "#6EE7B7"
+    }
+  },
+  "architecture": {
+    "pattern": "MVVM",
+    "networking": "URLSession + async/await",
+    "state_management": "ObservableObject + @Published"
+  }
+}

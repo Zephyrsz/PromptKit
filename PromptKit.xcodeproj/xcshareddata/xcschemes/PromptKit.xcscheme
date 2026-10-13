@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme LastUpgradeVersion="2700" version="1.3">
+<BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries>
+<BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="14CC28DF0E8E3244F6579B4B" BuildableName="PromptKit.app" BlueprintName="PromptKit" ReferencedContainer="container:PromptKit.xcodeproj"/></BuildActionEntry>
+</BuildActionEntries></BuildAction>
+<TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES"><Testables>
+<TestableReference skipped="NO"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="DD53A67A9F3FFDAB7A28B685" BuildableName="PromptKitTests.xctest" BlueprintName="PromptKitTests" ReferencedContainer="container:PromptKit.xcodeproj"/></TestableReference>
+<TestableReference skipped="NO"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="14EC96621C2BF1A1713C7704" BuildableName="PromptKitUITests.xctest" BlueprintName="PromptKitUITests" ReferencedContainer="container:PromptKit.xcodeproj"/></TestableReference>
+</Testables></TestAction>
+<LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" debugServiceExtension="internal" allowLocationSimulation="YES"><BuildableProductRunnable runnableDebuggingMode="0"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="14CC28DF0E8E3244F6579B4B" BuildableName="PromptKit.app" BlueprintName="PromptKit" ReferencedContainer="container:PromptKit.xcodeproj"/></BuildableProductRunnable></LaunchAction>
+<ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES"><BuildableProductRunnable runnableDebuggingMode="0"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="14CC28DF0E8E3244F6579B4B" BuildableName="PromptKit.app" BlueprintName="PromptKit" ReferencedContainer="container:PromptKit.xcodeproj"/></BuildableProductRunnable></ProfileAction>
+<AnalyzeAction buildConfiguration="Debug"/>
+<ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
+</Scheme>
