@@ -57,10 +57,12 @@ struct TagPickerView: View {
                         Image(systemName: "plus")
                             .foregroundColor(.accent)
                     }
+                    .accessibilityIdentifier("tag.add")
+                    .accessibilityLabel("新建标签")
                 }
             }
             .sheet(isPresented: $showingCreateTag) {
-                CreateTagView()
+                CreateTagView { tag in selectedTags.insert(tag.name) }
             }
         }
     }
@@ -72,6 +74,11 @@ struct CreateTagView: View {
 
     @State private var tagName = ""
     @State private var selectedColor = "#38BDF8"
+    @State private var isSaving = false
+    @State private var saveError: String?
+    var onCreate: ((Tag) -> Void)? = nil
+
+    private var trimmedName: String { tagName.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     let predefinedColors = [
         "#38BDF8", "#6EE7B7", "#E9A568", "#3B6DFF",
@@ -85,6 +92,7 @@ struct CreateTagView: View {
 
                 VStack(spacing: 20) {
                     TextField("标签名称", text: $tagName)
+                        .accessibilityIdentifier("tag.name")
                         .foregroundColor(.textPrimary)
                         .padding()
                         .background(Color.surface3)
@@ -108,8 +116,17 @@ struct CreateTagView: View {
                                                 .stroke(Color.white, lineWidth: selectedColor == color ? 3 : 0)
                                         )
                                 }
+                                .accessibilityLabel("标签颜色 \(color)")
+                                .accessibilityAddTraits(selectedColor == color ? .isSelected : [])
                             }
                         }
+                    }
+
+                    if let saveError = saveError {
+                        Text(saveError)
+                            .foregroundColor(.red)
+                            .font(.callout)
+                            .accessibilityIdentifier("tag.error")
                     }
 
                     Spacer()
@@ -119,15 +136,16 @@ struct CreateTagView: View {
                             await createTag()
                         }
                     } label: {
-                        Text("创建标签")
+                        Text(isSaving ? "保存中…" : "创建标签")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundColor(trimmedName.isEmpty ? .textSecondary : .surface1)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(tagName.isEmpty ? Color.surface4 : Color.accent)
+                            .background(trimmedName.isEmpty ? Color.surface4 : Color.accent)
                             .cornerRadius(999)
                     }
-                    .disabled(tagName.isEmpty)
+                    .accessibilityIdentifier("tag.save")
+                    .disabled(trimmedName.isEmpty || isSaving)
                 }
                 .padding()
             }
@@ -145,10 +163,16 @@ struct CreateTagView: View {
     }
 
     func createTag() async {
-        let input = CreateTagInput(name: tagName, color: selectedColor)
+        guard !trimmedName.isEmpty, !isSaving else { return }
+        isSaving = true
+        defer { isSaving = false }
+        let input = CreateTagInput(name: trimmedName, color: selectedColor)
         let success = await dataStore.createTag(input)
         if success {
+            if let tag = dataStore.tags.first(where: { $0.name == trimmedName }) { onCreate?(tag) }
             dismiss()
+        } else {
+            saveError = dataStore.errorMessage
         }
     }
 }

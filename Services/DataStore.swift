@@ -5,104 +5,78 @@ import SwiftUI
 class DataStore: ObservableObject {
     static let shared = DataStore()
 
-    @Published var prompts: [Prompt] = []
-    @Published var tags: [Tag] = []
-    @Published var isLoading = false
+    @Published private(set) var prompts: [Prompt] = []
+    @Published private(set) var tags: [Tag] = []
+    @Published private(set) var isLoading = false
     @Published var errorMessage: String?
 
-    private let apiService = APIService.shared
+    private var database: SQLiteStore?
 
-    private init() {}
+    init(databaseURL: URL = SQLiteStore.defaultURL) {
+        do {
+            database = try SQLiteStore(url: databaseURL)
+            try reload()
+        } catch {
+            errorMessage = "无法打开本地资料库：\(error.localizedDescription)"
+        }
+    }
 
     // MARK: - Prompts
 
-    func loadPrompts(filters: [String: String]? = nil) async {
+    func loadPrompts() async {
         isLoading = true
-        errorMessage = nil
-
-        do {
-            prompts = try await apiService.fetchPrompts(filters: filters)
-        } catch {
-            errorMessage = "加载模板失败: \(error.localizedDescription)"
-        }
-
-        isLoading = false
+        defer { isLoading = false }
+        _ = perform { _ in }
     }
 
     func createPrompt(_ input: CreatePromptInput) async -> Bool {
-        do {
-            let newPrompt = try await apiService.createPrompt(input)
-            prompts.insert(newPrompt, at: 0)
-            return true
-        } catch {
-            errorMessage = "创建模板失败: \(error.localizedDescription)"
-            return false
-        }
+        perform { try $0.savePrompt(input) }
     }
 
     func updatePrompt(id: Int, input: CreatePromptInput) async -> Bool {
-        do {
-            let updatedPrompt = try await apiService.updatePrompt(id: id, input: input)
-            if let index = prompts.firstIndex(where: { $0.id == id }) {
-                prompts[index] = updatedPrompt
-            }
-            return true
-        } catch {
-            errorMessage = "更新模板失败: \(error.localizedDescription)"
-            return false
-        }
+        perform { try $0.savePrompt(input, id: id) }
     }
 
     func deletePrompt(id: Int) async -> Bool {
-        do {
-            try await apiService.deletePrompt(id: id)
-            prompts.removeAll { $0.id == id }
-            return true
-        } catch {
-            errorMessage = "删除模板失败: \(error.localizedDescription)"
-            return false
-        }
+        perform { try $0.deletePrompt(id: id) }
     }
 
     func toggleFavorite(prompt: Prompt) async {
-        do {
-            let updatedPrompt = try await apiService.toggleFavorite(id: prompt.id, isFavorite: !prompt.isFavorite)
-            if let index = prompts.firstIndex(where: { $0.id == prompt.id }) {
-                prompts[index] = updatedPrompt
-            }
-        } catch {
-            errorMessage = "更新收藏状态失败: \(error.localizedDescription)"
-        }
+        guard let current = prompts.first(where: { $0.id == prompt.id }) else { return }
+        _ = perform { try $0.setFavorite(id: current.id, isFavorite: !current.isFavorite) }
     }
 
     // MARK: - Tags
 
     func loadTags() async {
-        do {
-            tags = try await apiService.fetchTags()
-        } catch {
-            errorMessage = "加载标签失败: \(error.localizedDescription)"
-        }
+        _ = perform { _ in }
     }
 
     func createTag(_ input: CreateTagInput) async -> Bool {
-        do {
-            let newTag = try await apiService.createTag(input)
-            tags.append(newTag)
-            return true
-        } catch {
-            errorMessage = "创建标签失败: \(error.localizedDescription)"
-            return false
-        }
+        perform { try $0.createTag(input) }
     }
 
     func deleteTag(id: Int) async -> Bool {
+        perform { try $0.deleteTag(id: id) }
+    }
+
+    private func reload() throws {
+        guard let database = database else { throw StorageError.message("本地资料库未能打开，请重新启动 App 后重试。") }
+        let savedPrompts = try database.loadPrompts()
+        let savedTags = try database.loadTags()
+        prompts = savedPrompts
+        tags = savedTags
+    }
+
+    private func perform(_ operation: (SQLiteStore) throws -> Void) -> Bool {
         do {
-            try await apiService.deleteTag(id: id)
-            tags.removeAll { $0.id == id }
+            guard let database = database else { throw StorageError.message("本地资料库未能打开，请重新启动 App 后重试。") }
+            try operation(database)
+            try reload()
+            errorMessage = nil
             return true
         } catch {
-            errorMessage = "删除标签失败: \(error.localizedDescription)"
+            errorMessage = error.localizedDescription
             return false
         }
     }

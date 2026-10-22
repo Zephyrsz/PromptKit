@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000001 /* SQLiteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* SQLiteStore.swift */; };
 		03BE3A0A74F20082FB285A40 /* Services/APIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2087EF57559129B241438F60 /* Services/APIService.swift */; };
 		04200CFFD12D083534B07BB1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3685E330EC5277A9DD5661C6 /* Assets.xcassets */; };
 		09C8E84398945336A2E1DC7B /* Models/Prompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510E6398FC58E9181FCCBE36 /* Models/Prompt.swift */; };
@@ -45,6 +46,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000002 /* SQLiteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/SQLiteStore.swift; sourceTree = "<group>"; };
 		0E504F8FD9CC807E17BEB515 /* Views/EditPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/EditPromptView.swift; sourceTree = "<group>"; };
 		16260C585190F1B74295BB31 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		1C36FA101524A6B3D2BDAEEC /* Utils/ColorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ColorExtension.swift; sourceTree = "<group>"; };
@@ -113,6 +115,7 @@
 				7E5E6D8B3B12C3C11D83F5ED /* PromptKitApp.swift */,
 				2087EF57559129B241438F60 /* Services/APIService.swift */,
 				EE7A6E7548A60F524279E907 /* Services/DataStore.swift */,
+				A10000000000000000000002 /* SQLiteStore.swift */,
 				1C36FA101524A6B3D2BDAEEC /* Utils/ColorExtension.swift */,
 				0E504F8FD9CC807E17BEB515 /* Views/EditPromptView.swift */,
 				564E2D3BC99F619B4CED8519 /* Views/PromptDetailView.swift */,
@@ -250,6 +253,7 @@
 				365996B609ECFF3773D9C671 /* PromptKitApp.swift in Sources */,
 				03BE3A0A74F20082FB285A40 /* Services/APIService.swift in Sources */,
 				F42B2E7F92D3A46E0C4939F4 /* Services/DataStore.swift in Sources */,
+				A10000000000000000000001 /* SQLiteStore.swift in Sources */,
 				C83F681994CE7153FB05166E /* Utils/ColorExtension.swift in Sources */,
 				B5E764601C6EC833C9A01857 /* Views/EditPromptView.swift in Sources */,
 				40FD15451D2CE0545A3C5DB0 /* Views/PromptDetailView.swift in Sources */,

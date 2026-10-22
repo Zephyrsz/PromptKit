@@ -5,22 +5,20 @@
   "platform": "iOS 16.0+",
   "language": "Swift",
   "framework": "SwiftUI",
-  "backend": {
-    "api_base": "http://127.0.0.1:3001/api",
-    "endpoints": {
-      "prompts": "/prompts",
-      "tags": "/tags"
-    }
+  "storage": {
+    "engine": "SQLite3",
+    "path": "Application Support/PromptKit/PromptKit.sqlite",
+    "offline": true,
+    "schema_version": 1
   },
   "features": [
-    "Template management",
+    "Prompt notes and templates",
     "Quick access shortcuts",
     "Tag management",
     "Variable substitution",
     "Favorite templates",
     "Search and filter",
-    "Export data",
-    "iCloud sync"
+    "Offline persistence"
   ],
   "design": {
     "theme": "dark",
@@ -36,7 +34,7 @@
   },
   "architecture": {
     "pattern": "MVVM",
-    "networking": "URLSession + async/await",
+    "persistence": "System SQLite3",
     "state_management": "ObservableObject + @Published"
   }
 }

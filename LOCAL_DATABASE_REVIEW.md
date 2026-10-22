@@ -1,5 +1,7 @@
 # PromptKit 本地数据库与 D1 数据迁移审查
 
+> 2026-10-22 现状更新：App 已使用系统 SQLite3，在 iPhone Application Support 中持久保存笔记、模板、标签和收藏。本文以下内容为 2026-10-11 的历史审查及迁移建议；不再表示当前 App 仍依赖后端。当前实现见 [README](README.md) 和 `Services/SQLiteStore.swift`。Web/D1 数据导入及同步仍未实现。
+
 审查日期：2026-10-11。
 
 结论：当前 PromptKit 是通过 HTTP API 访问后端的 SwiftUI 原型，尚未实现本地数据库、离线读写、D1 数据导入或 iCloud 同步。用户进一步明确的目标是 **iPhone 本地持久化**。保留当前 iOS 15 支持，并希望直接管理现有关系表时，推荐 **SQLite + GRDB**；若提高最低版本到 iOS 17、以 SwiftUI 集成为优先，则可优先采用 **SwiftData**；保留 iOS 15 且希望由 Apple 框架管理实体时，可采用 **Core Data**。

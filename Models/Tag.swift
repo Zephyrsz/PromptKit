@@ -22,22 +22,17 @@ struct Tag: Identifiable, Codable, Hashable {
         name = try container.decode(String.self, forKey: .name)
         color = try container.decode(String.self, forKey: .color)
 
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        createdAt = try container.decodePromptDate(forKey: .createdAt)
+        updatedAt = try container.decodePromptDate(forKey: .updatedAt)
+    }
 
-        if let createdAtString = try? container.decode(String.self, forKey: .createdAt),
-           let date = dateFormatter.date(from: createdAtString) {
-            createdAt = date
-        } else {
-            createdAt = Date()
-        }
-
-        if let updatedAtString = try? container.decode(String.self, forKey: .updatedAt),
-           let date = dateFormatter.date(from: updatedAtString) {
-            updatedAt = date
-        } else {
-            updatedAt = Date()
-        }
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(color, forKey: .color)
+        try container.encode(createdAt.timeIntervalSince1970 * 1000, forKey: .createdAt)
+        try container.encode(updatedAt.timeIntervalSince1970 * 1000, forKey: .updatedAt)
     }
 
     init(id: Int, name: String, color: String, createdAt: Date = Date(), updatedAt: Date = Date()) {

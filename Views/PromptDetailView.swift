@@ -1,258 +1,190 @@
 import SwiftUI
 
 struct PromptDetailView: View {
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var dataStore: DataStore
-
-    let prompt: Prompt
-
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var dataStore: DataStore
+    private let initialPrompt: Prompt
     @State private var showingEditSheet = false
     @State private var showingDeleteAlert = false
-    @State private var filledVars: [String: String] = [:]
-    @State private var processedText = ""
+    @State private var actionError: String?
+
+    init(prompt: Prompt) { initialPrompt = prompt }
+
+    private var prompt: Prompt {
+        dataStore.prompts.first { $0.id == initialPrompt.id } ?? initialPrompt
+    }
 
     var body: some View {
         NavigationView {
             ZStack {
                 Color.surface1.ignoresSafeArea()
-
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        // Title and icon
-                        HStack(spacing: 12) {
-                            Image(systemName: "message")
-                                .font(.title)
-                                .foregroundColor(.accent)
-                                .frame(width: 50, height: 50)
-                                .background(Color.accent.opacity(0.15))
-                                .cornerRadius(10)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(prompt.title)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.textPrimary)
-
-                                if let description = prompt.description, !description.isEmpty {
-                                    Text(description)
-                                        .font(.subheadline)
-                                        .foregroundColor(.textSecondary)
-                                }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label(prompt.title, systemImage: prompt.kind.icon)
+                                .font(.title2.bold())
+                                .foregroundColor(.textPrimary)
+                            Text(prompt.kind.title)
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                            if let description = prompt.description, !description.isEmpty {
+                                Text(description).foregroundColor(.textSecondary)
                             }
-
-                            Spacer()
                         }
-                        .padding()
-                        .background(Color.surface3)
-                        .cornerRadius(12)
 
-                        // Tags
                         if !prompt.tags.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(prompt.tags, id: \.self) { tagName in
-                                        if let tag = dataStore.tags.first(where: { $0.name == tagName }) {
-                                            Text(tag.name)
-                                                .font(.caption)
-                                                .foregroundColor(.white)
-                                                .padding(.horizontal, 12)
-                                                .padding(.vertical, 6)
-                                                .background(tag.swiftUIColor.opacity(0.3))
-                                                .cornerRadius(999)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Template variables
-                        if let templateVars = prompt.templateVars, !templateVars.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("填写变量")
-                                    .font(.headline)
-                                    .foregroundColor(.textPrimary)
-
-                                ForEach(templateVars, id: \.self) { varName in
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(varName)
+                                HStack {
+                                    ForEach(prompt.tags, id: \.self) { name in
+                                        Text(name)
                                             .font(.caption)
-                                            .foregroundColor(.textSecondary)
-
-                                        TextField("输入 \(varName)", text: Binding(
-                                            get: { filledVars[varName] ?? "" },
-                                            set: { filledVars[varName] = $0 }
-                                        ))
-                                        .foregroundColor(.textPrimary)
-                                        .padding()
-                                        .background(Color.surface2)
-                                        .cornerRadius(8)
+                                            .padding(8)
+                                            .background(Color.surface4)
+                                            .cornerRadius(8)
                                     }
                                 }
-
-                                Button {
-                                    processTemplate()
-                                } label: {
-                                    Text("生成文本")
-                                        .font(.headline)
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(Color.accent)
-                                        .cornerRadius(999)
-                                }
                             }
-                            .padding()
-                            .background(Color.surface3)
-                            .cornerRadius(12)
+                            .foregroundColor(.textPrimary)
                         }
 
-                        // Content
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("模板内容")
-                                    .font(.headline)
-                                    .foregroundColor(.textPrimary)
+                        PromptUsageView(prompt: prompt)
 
-                                Spacer()
-
-                                Button {
-                                    copyToClipboard()
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "doc.on.doc")
-                                        Text("复制")
-                                    }
-                                    .font(.caption)
-                                    .foregroundColor(.accent)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.accent.opacity(0.15))
-                                    .cornerRadius(999)
-                                }
-                            }
-
-                            Text(processedText.isEmpty ? prompt.promptText : processedText)
-                                .font(.body)
-                                .foregroundColor(.textPrimary)
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.surface2)
-                                .cornerRadius(8)
-                        }
-                        .padding()
-                        .background(Color.surface3)
-                        .cornerRadius(12)
-
-                        // Usage notes
-                        if let usageNotes = prompt.usageNotes, !usageNotes.isEmpty {
+                        if let notes = prompt.usageNotes, !notes.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("使用说明")
-                                    .font(.headline)
-                                    .foregroundColor(.textPrimary)
-
-                                Text(usageNotes)
-                                    .font(.body)
-                                    .foregroundColor(.textSecondary)
+                                Text("使用说明").font(.headline)
+                                Text(notes).foregroundColor(.textSecondary)
                             }
-                            .padding()
-                            .background(Color.surface3)
-                            .cornerRadius(12)
+                            .foregroundColor(.textPrimary)
                         }
 
-                        // Actions
-                        HStack(spacing: 12) {
-                            Button {
-                                showingEditSheet = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "pencil")
-                                    Text("编辑")
-                                }
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.surface4)
-                                .cornerRadius(999)
+                        HStack(spacing: 20) {
+                            Button { showingEditSheet = true } label: {
+                                Label("编辑", systemImage: "pencil")
                             }
+                            .accessibilityIdentifier("prompt.edit")
+                            Spacer()
+                            Button(role: .destructive) { showingDeleteAlert = true } label: {
+                                Label("删除", systemImage: "trash")
+                            }
+                            .accessibilityIdentifier("prompt.delete")
+                        }
+                        .padding(.vertical)
 
-                            Button {
-                                showingDeleteAlert = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "trash")
-                                    Text("删除")
-                                }
-                                .font(.headline)
-                                .foregroundColor(.red)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.surface4)
-                                .cornerRadius(999)
-                            }
+                        if let actionError = actionError {
+                            Text(actionError).font(.callout).foregroundColor(.red)
                         }
                     }
                     .padding()
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
-            .navigationTitle("详情")
+            .navigationTitle(prompt.kind.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .foregroundColor(.textSecondary)
-                    }
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityIdentifier("prompt.close")
+                        .accessibilityLabel("关闭详情")
                 }
-
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         Task {
                             await dataStore.toggleFavorite(prompt: prompt)
+                            actionError = dataStore.errorMessage
                         }
                     } label: {
                         Image(systemName: prompt.isFavorite ? "star.fill" : "star")
                             .foregroundColor(prompt.isFavorite ? .yellow : .textSecondary)
                     }
+                    .accessibilityIdentifier("prompt.favorite")
+                    .accessibilityLabel(prompt.isFavorite ? "取消收藏" : "收藏")
                 }
             }
-            .sheet(isPresented: $showingEditSheet) {
-                EditPromptView(prompt: prompt)
-            }
-            .alert("删除模板", isPresented: $showingDeleteAlert) {
+            .sheet(isPresented: $showingEditSheet) { EditPromptView(prompt: prompt) }
+            .alert("删除\(prompt.kind.title)", isPresented: $showingDeleteAlert) {
                 Button("取消", role: .cancel) {}
                 Button("删除", role: .destructive) {
                     Task {
-                        let success = await dataStore.deletePrompt(id: prompt.id)
-                        if success {
-                            dismiss()
+                        if await dataStore.deletePrompt(id: prompt.id) { dismiss() }
+                        else { actionError = dataStore.errorMessage }
+                    }
+                }
+            } message: { Text("确定要删除「\(prompt.title)」吗？此操作无法撤销。") }
+        }
+    }
+}
+
+// Details and quick access use the same rendering and completion rules.
+struct PromptUsageView: View {
+    let prompt: Prompt
+    @State private var values: [String: String] = [:]
+    @State private var showingCopiedAlert = false
+
+    private var missing: [String] { prompt.missingVariables(in: values) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            if !prompt.variableNames.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("填写变量").font(.headline).foregroundColor(.textPrimary)
+                    ForEach(prompt.variableNames, id: \.self) { name in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(name).font(.subheadline).foregroundColor(.textSecondary)
+                            TextField("输入 \(name)", text: Binding(
+                                get: { values[name] ?? "" }, set: { values[name] = $0 }
+                            ), axis: .vertical)
+                            .accessibilityIdentifier("variable.\(name)")
+                            .foregroundColor(.textPrimary)
+                            .padding(12)
+                            .background(Color.surface2)
+                            .cornerRadius(8)
                         }
                     }
                 }
-            } message: {
-                Text("确定要删除「\(prompt.title)」吗？此操作无法撤销。")
+                .padding()
+                .background(Color.surface3)
+                .cornerRadius(12)
             }
-        }
-    }
 
-    func processTemplate() {
-        var result = prompt.promptText
+            VStack(alignment: .leading, spacing: 12) {
+                Text(prompt.isTemplate ? "生成结果" : "提示词内容")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                Text(prompt.rendered(with: values))
+                    .accessibilityIdentifier("prompt.result")
+                    .textSelection(.enabled)
+                    .foregroundColor(.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-        if let templateVars = prompt.templateVars {
-            for varName in templateVars {
-                if let value = filledVars[varName], !value.isEmpty {
-                    result = result.replacingOccurrences(of: "{{\(varName)}}", with: value)
+                if !missing.isEmpty {
+                    Text("待填写：\(missing.joined(separator: "、"))")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
                 }
+
+                Button {
+                    UIPasteboard.general.string = prompt.rendered(with: values)
+                    showingCopiedAlert = true
+                } label: {
+                    Label(prompt.isTemplate ? "生成并复制" : "复制笔记", systemImage: "doc.on.doc")
+                        .font(.headline)
+                        .foregroundColor(missing.isEmpty ? .surface1 : .textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(missing.isEmpty ? Color.accent : Color.surface4)
+                        .cornerRadius(12)
+                }
+                .accessibilityIdentifier("prompt.copy")
+                .disabled(!missing.isEmpty)
             }
+            .padding()
+            .background(Color.surface3)
+            .cornerRadius(12)
         }
-
-        processedText = result
-    }
-
-    func copyToClipboard() {
-        let textToCopy = processedText.isEmpty ? prompt.promptText : processedText
-        UIPasteboard.general.string = textToCopy
+        .onChange(of: prompt.promptText) { _ in values = [:] }
+        .onChange(of: prompt.isTemplate) { _ in values = [:] }
+        .alert("已复制", isPresented: $showingCopiedAlert) {
+            Button("好的", role: .cancel) {}
+        } message: { Text("内容已复制到剪贴板") }
     }
 }

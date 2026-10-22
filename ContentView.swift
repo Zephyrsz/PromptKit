@@ -7,7 +7,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             TemplateListView()
                 .tabItem {
-                    Label("模板", systemImage: "doc.text")
+                    Label("提示词", systemImage: "doc.text")
                 }
                 .tag(0)
 
@@ -24,5 +24,6 @@ struct ContentView: View {
                 .tag(2)
         }
         .accentColor(Color(hex: "38BDF8"))
+        .preferredColorScheme(.dark)
     }
 }

@@ -3,10 +3,15 @@ import SwiftUI
 struct VariableInputView: View {
     @Environment(\.dismiss) var dismiss
 
-    @Binding var templateVars: [String]
     @Binding var promptText: String
 
     @State private var varName = ""
+
+    private var templateVars: [String] { TemplateText.variables(in: promptText) }
+    private var trimmedName: String { varName.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var isValid: Bool {
+        !trimmedName.isEmpty && trimmedName.rangeOfCharacter(from: CharacterSet(charactersIn: "{}\r\n")) == nil
+    }
 
     var body: some View {
         NavigationView {
@@ -25,7 +30,7 @@ struct VariableInputView: View {
                             .background(Color.surface3)
                             .cornerRadius(12)
 
-                        Text("将在模板中插入 {{\(varName.isEmpty ? "变量名" : varName)}}")
+                        Text("将在模板中插入 ${\(trimmedName.isEmpty ? "变量名" : trimmedName)}")
                             .font(.caption)
                             .foregroundColor(.textSecondary)
                     }
@@ -38,18 +43,19 @@ struct VariableInputView: View {
 
                             ForEach(templateVars, id: \.self) { varName in
                                 HStack {
-                                    Text("{{\(varName)}}")
+                                    Text(varName)
                                         .font(.body)
                                         .foregroundColor(.accent)
 
                                     Spacer()
 
                                     Button {
-                                        templateVars.removeAll { $0 == varName }
+                                        promptText = TemplateText.render(promptText, values: [varName: varName])
                                     } label: {
                                         Image(systemName: "xmark.circle.fill")
                                             .foregroundColor(.textTertiary)
                                     }
+                                    .accessibilityLabel("移除填空项 \(varName)")
                                 }
                                 .padding()
                                 .background(Color.surface3)
@@ -65,13 +71,13 @@ struct VariableInputView: View {
                     } label: {
                         Text("插入变量")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundColor(isValid ? .surface1 : .textSecondary)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(varName.isEmpty ? Color.surface4 : Color.accentMuted)
+                            .background(isValid ? Color.accent : Color.surface4)
                             .cornerRadius(999)
                     }
-                    .disabled(varName.isEmpty)
+                    .disabled(!isValid)
                 }
                 .padding()
             }
@@ -89,14 +95,8 @@ struct VariableInputView: View {
     }
 
     func addVariable() {
-        let trimmedName = varName.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty else { return }
-
-        if !templateVars.contains(trimmedName) {
-            templateVars.append(trimmedName)
-            promptText += " {{\(trimmedName)}}"
-        }
-
-        varName = ""
+        guard isValid else { return }
+        promptText += " ${\(trimmedName)}"
+        dismiss()
     }
 }

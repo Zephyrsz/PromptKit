@@ -254,6 +254,10 @@ struct TagManagementView: View {
                 Color.surface1.ignoresSafeArea()
 
                 List {
+                    if let error = dataStore.errorMessage {
+                        Text(error)
+                            .foregroundColor(.red)
+                    }
                     ForEach(dataStore.tags) { tag in
                         HStack {
                             Circle()
@@ -294,6 +298,8 @@ struct TagManagementView: View {
                         Image(systemName: "plus")
                             .foregroundColor(.accent)
                     }
+                    .accessibilityIdentifier("tag.add")
+                    .accessibilityLabel("新建标签")
                 }
             }
             .sheet(isPresented: $showingCreateTag) {

@@ -1,293 +1,189 @@
 import SwiftUI
 
 struct EditPromptView: View {
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var dataStore: DataStore
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var dataStore: DataStore
 
     let prompt: Prompt?
-
-    @State private var title = ""
-    @State private var promptText = ""
-    @State private var selectedTags: Set<String> = []
+    @State private var kind: PromptKind
+    @State private var title: String
+    @State private var promptText: String
+    @State private var selectedTags: Set<String>
     @State private var showingTagPicker = false
     @State private var showingVariableSheet = false
-    @State private var templateVars: [String] = []
     @State private var showingTemplateList = false
+    @State private var isSaving = false
+    @State private var saveError: String?
 
-    var isValid: Bool {
-        !title.isEmpty && !promptText.isEmpty
+    init(prompt: Prompt?, initialKind: PromptKind = .note) {
+        self.prompt = prompt
+        _kind = State(initialValue: prompt?.kind ?? initialKind)
+        _title = State(initialValue: prompt?.title ?? "")
+        _promptText = State(initialValue: prompt?.promptText ?? "")
+        _selectedTags = State(initialValue: Set(prompt?.tags ?? []))
+    }
+
+    private var variables: [String] { TemplateText.variables(in: promptText) }
+    private var isValid: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !promptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        (kind == .note || !variables.isEmpty)
     }
 
     var body: some View {
         NavigationView {
             ZStack {
                 Color.surface1.ignoresSafeArea()
-
                 ScrollView {
-                    VStack(spacing: 20) {
-                        // Title field
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Image(systemName: "gift")
-                                    .foregroundColor(.accent)
-                                TextField("模板标题", text: $title)
-                                    .foregroundColor(.textPrimary)
+                    VStack(alignment: .leading, spacing: 20) {
+                        Picker("内容类型", selection: $kind) {
+                            ForEach(PromptKind.allCases) { kind in
+                                Text(kind.title).tag(kind)
                             }
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("prompt.kind")
+
+                        TextField(kind == .note ? "笔记标题" : "模板标题", text: $title)
+                            .accessibilityIdentifier("prompt.title")
+                            .foregroundColor(.textPrimary)
                             .padding()
                             .background(Color.surface3)
                             .cornerRadius(12)
-                        }
 
-                        // Tags
-                        VStack(alignment: .leading, spacing: 8) {
-                            Button {
-                                showingTagPicker = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "plus.circle")
-                                        .foregroundColor(.accent)
-                                    Text("添加标签")
-                                        .foregroundColor(.accent)
-                                    Spacer()
-                                }
-                                .padding()
-                                .background(Color.surface3)
-                                .cornerRadius(12)
-                            }
-
-                            if !selectedTags.isEmpty {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 8) {
-                                        ForEach(Array(selectedTags), id: \.self) { tagName in
-                                            if let tag = dataStore.tags.first(where: { $0.name == tagName }) {
-                                                HStack(spacing: 4) {
-                                                    Text(tag.name)
-                                                        .font(.caption)
-                                                        .foregroundColor(.white)
-
-                                                    Button {
-                                                        selectedTags.remove(tagName)
-                                                    } label: {
-                                                        Image(systemName: "xmark.circle.fill")
-                                                            .font(.caption)
-                                                            .foregroundColor(.white.opacity(0.7))
-                                                    }
-                                                }
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 6)
-                                                .background(tag.swiftUIColor.opacity(0.3))
-                                                .cornerRadius(999)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Content field
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("模板内容")
-                                    .font(.headline)
-                                    .foregroundColor(.textPrimary)
-
-                                Spacer()
-
-                                Button {
-                                    // Toggle visibility
-                                } label: {
-                                    Image(systemName: "eye")
-                                        .foregroundColor(.textTertiary)
-                                }
-                            }
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(kind == .note ? "提示词内容" : "模板内容")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
 
                             TextEditor(text: $promptText)
+                                .accessibilityIdentifier("prompt.body")
+                                .scrollContentBackground(.hidden)
                                 .foregroundColor(.textPrimary)
-                                .frame(minHeight: 200)
+                                .frame(minHeight: 220)
                                 .padding(8)
                                 .background(Color.surface2)
                                 .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.surface4, lineWidth: 1)
-                                )
 
-                            HStack {
-                                Button {
-                                    // Paste
-                                } label: {
-                                    Image(systemName: "doc.on.clipboard")
-                                        .foregroundColor(.textTertiary)
-                                }
-
-                                Button {
-                                    // Format
-                                } label: {
-                                    Image(systemName: "list.bullet")
-                                        .foregroundColor(.textTertiary)
-                                }
-
-                                Spacer()
-
+                            if kind == .template {
                                 Button {
                                     showingVariableSheet = true
                                 } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "plus.circle.fill")
-                                        Text("插入替换项")
-                                    }
-                                    .font(.subheadline)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(Color.accentMuted)
-                                    .cornerRadius(999)
+                                    Label("插入填空项", systemImage: "plus.circle")
                                 }
+                                .accessibilityIdentifier("variable.add")
+                                .foregroundColor(.accent)
+
+                                Text(variables.isEmpty ? "模板至少需要一个填空项，例如 ${主题}。" : "填空项（\(variables.count)）：\(variables.joined(separator: "、"))")
+                                    .font(.caption)
+                                    .foregroundColor(.textSecondary)
+                            } else {
+                                Text("直接复制使用，正文中的占位符会原样保留。")
+                                    .font(.caption)
+                                    .foregroundColor(.textSecondary)
                             }
                         }
                         .padding()
                         .background(Color.surface3)
                         .cornerRadius(12)
 
-                        // Template variables info
-                        if !templateVars.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack {
-                                    Image(systemName: "list.bullet")
-                                        .foregroundColor(.textSecondary)
-                                    Text("模板没有填空项")
-                                        .font(.headline)
-                                        .foregroundColor(.textSecondary)
-                                }
-
-                                Text("点击「插入替换项」或选中文字后点击「设为可替换」来添加填空项")
-                                    .font(.caption)
-                                    .foregroundColor(.textTertiary)
-                            }
-                            .padding()
-                            .background(Color.surface2)
-                            .cornerRadius(12)
-                        }
-
-                        // Template reference
                         VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "lightbulb")
-                                    .foregroundColor(.yellow)
-                                Image(systemName: "books.vertical")
+                            Button {
+                                showingTagPicker = true
+                            } label: {
+                                Label("选择标签", systemImage: "tag")
                                     .foregroundColor(.accent)
-                                Text("预设模板参考")
-                                    .font(.headline)
-                                    .foregroundColor(.textPrimary)
-
-                                Spacer()
                             }
+                            .accessibilityIdentifier("prompt.tags")
 
+                            if !selectedTags.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack {
+                                        ForEach(selectedTags.sorted(), id: \.self) { name in
+                                            Button {
+                                                selectedTags.remove(name)
+                                            } label: {
+                                                Label(name, systemImage: "xmark.circle")
+                                                    .font(.caption)
+                                                    .padding(8)
+                                                    .background(Color.surface4)
+                                                    .cornerRadius(8)
+                                            }
+                                            .foregroundColor(.textPrimary)
+                                            .accessibilityLabel("移除标签 \(name)")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.surface3)
+                        .cornerRadius(12)
+
+                        if kind == .template {
                             Button {
                                 showingTemplateList = true
                             } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        HStack {
-                                            Text("1")
-                                                .font(.caption)
-                                                .foregroundColor(.white)
-                                                .frame(width: 24, height: 24)
-                                                .background(Color.accent)
-                                                .clipShape(Circle())
-
-                                            Text("创意文案")
-                                                .font(.headline)
-                                                .foregroundColor(.accent)
-                                        }
-
-                                        Text("快速生成吸引人的营销文案")
-                                            .font(.caption)
-                                            .foregroundColor(.textSecondary)
-                                    }
-
-                                    Spacer()
-
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.accent)
-                                }
-                                .padding()
-                                .background(Color.surface2)
-                                .cornerRadius(8)
+                                Label("预设模板参考", systemImage: "books.vertical")
                             }
+                            .foregroundColor(.accent)
                         }
-                        .padding()
-                        .background(Color.surface3)
-                        .cornerRadius(12)
+
+                        Label("保存在此 iPhone 的本地资料库", systemImage: "internaldrive")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
                     }
                     .padding()
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
-            .navigationTitle("创建")
+            .navigationTitle("\(prompt == nil ? "新建" : "编辑")\(kind.title)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
-                        dismiss()
-                    }
-                    .foregroundColor(.textSecondary)
+                    Button("取消") { dismiss() }
+                        .disabled(isSaving)
                 }
-
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("保存") {
-                        Task {
-                            await savePrompt()
-                        }
+                    Button(isSaving ? "保存中…" : "保存") {
+                        Task { await savePrompt() }
                     }
-                    .foregroundColor(isValid ? .textSecondary : .textTertiary)
-                    .disabled(!isValid)
+                    .accessibilityIdentifier("prompt.save")
+                    .disabled(!isValid || isSaving)
                 }
             }
             .sheet(isPresented: $showingTagPicker) {
                 TagPickerView(selectedTags: $selectedTags)
             }
             .sheet(isPresented: $showingVariableSheet) {
-                VariableInputView(templateVars: $templateVars, promptText: $promptText)
+                VariableInputView(promptText: $promptText)
             }
             .sheet(isPresented: $showingTemplateList) {
-                TemplateReferenceView(onSelectTemplate: { template in
+                TemplateReferenceView { template in
                     title = template.title
                     promptText = template.promptText
                     showingTemplateList = false
-                })
+                }
             }
+            .alert("保存失败", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("好的", role: .cancel) { saveError = nil }
+            } message: { Text(saveError ?? "") }
         }
-        .onAppear {
-            if let prompt = prompt {
-                title = prompt.title
-                promptText = prompt.promptText
-                selectedTags = Set(prompt.tags)
-                templateVars = prompt.templateVars ?? []
-            }
-        }
+        .interactiveDismissDisabled(isSaving)
     }
 
-    func savePrompt() async {
-        let input = CreatePromptInput(
-            title: title,
-            description: nil,
-            promptText: promptText,
-            tags: Array(selectedTags),
-            usageNotes: nil,
-            isFavorite: false,
-            isTemplate: true,
-            templateVars: templateVars.isEmpty ? nil : templateVars
-        )
-
+    private func savePrompt() async {
+        guard isValid, !isSaving else { return }
+        isSaving = true
+        defer { isSaving = false }
+        let input = CreatePromptInput(editing: prompt, title: title, promptText: promptText, tags: selectedTags.sorted(), kind: kind)
         let success: Bool
         if let prompt = prompt {
             success = await dataStore.updatePrompt(id: prompt.id, input: input)
         } else {
             success = await dataStore.createPrompt(input)
         }
-
-        if success {
-            dismiss()
-        }
+        if success { dismiss() } else { saveError = dataStore.errorMessage }
     }
 }

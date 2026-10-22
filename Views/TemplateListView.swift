@@ -6,16 +6,16 @@ struct TemplateListView: View {
     @State private var showingCreateSheet = false
     @State private var showingMenu = false
     @State private var selectedPrompt: Prompt?
+    @State private var selectedKind: PromptKind?
+    @State private var createKind: PromptKind = .note
 
     var filteredPrompts: [Prompt] {
-        if searchText.isEmpty {
-            return dataStore.prompts
-        } else {
-            return dataStore.prompts.filter { prompt in
-                prompt.title.localizedCaseInsensitiveContains(searchText) ||
-                prompt.description?.localizedCaseInsensitiveContains(searchText) ?? false ||
-                prompt.promptText.localizedCaseInsensitiveContains(searchText)
-            }
+        dataStore.prompts.filter { prompt in
+            (selectedKind == nil || prompt.kind == selectedKind) &&
+            (searchText.isEmpty || prompt.title.localizedCaseInsensitiveContains(searchText) ||
+             (prompt.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+             prompt.promptText.localizedCaseInsensitiveContains(searchText) ||
+             prompt.tags.contains { $0.localizedCaseInsensitiveContains(searchText) })
         }
     }
 
@@ -30,7 +30,7 @@ struct TemplateListView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.textTertiary)
 
-                        TextField("搜索模板...", text: $searchText)
+                        TextField("搜索笔记、模板或标签", text: $searchText)
                             .foregroundColor(.textPrimary)
                     }
                     .padding()
@@ -38,6 +38,22 @@ struct TemplateListView: View {
                     .cornerRadius(12)
                     .padding(.horizontal)
                     .padding(.top, 8)
+
+                    Picker("内容分类", selection: $selectedKind) {
+                        Text("全部").tag(PromptKind?.none)
+                        Text("笔记").tag(PromptKind?.some(.note))
+                        Text("模板").tag(PromptKind?.some(.template))
+                    }
+                    .pickerStyle(.segmented)
+                    .padding()
+                    .accessibilityIdentifier("prompt.filter")
+
+                    if let message = dataStore.errorMessage {
+                        Text(message)
+                            .font(.callout)
+                            .foregroundColor(.red)
+                            .padding(.horizontal)
+                    }
 
                     // Prompts list
                     if dataStore.isLoading {
@@ -51,8 +67,13 @@ struct TemplateListView: View {
                             Image(systemName: "doc.text")
                                 .font(.system(size: 48))
                                 .foregroundColor(.textTertiary)
-                            Text("暂无模板")
+                            Text(searchText.isEmpty ? "暂无\(selectedKind?.title ?? "笔记或模板")" : "没有匹配的内容")
                                 .foregroundColor(.textSecondary)
+                            Button("新建\(selectedKind?.title ?? "提示词笔记")") {
+                                createKind = selectedKind ?? .note
+                                showingCreateSheet = true
+                            }
+                            .foregroundColor(.accent)
                         }
                         Spacer()
                     } else {
@@ -86,6 +107,8 @@ struct TemplateListView: View {
                                 .clipShape(Circle())
                                 .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                         }
+                        .accessibilityIdentifier("prompt.add")
+                        .accessibilityLabel("新建提示词")
                         .padding(.trailing, 24)
                         .padding(.bottom, 24)
                     }
@@ -100,21 +123,22 @@ struct TemplateListView: View {
                 }
             }
             .sheet(isPresented: $showingCreateSheet) {
-                EditPromptView(prompt: nil)
+                EditPromptView(prompt: nil, initialKind: createKind)
             }
             .sheet(item: $selectedPrompt) { prompt in
                 PromptDetailView(prompt: prompt)
             }
             .confirmationDialog("", isPresented: $showingMenu, titleVisibility: .hidden) {
-                Button("创建") {
+                Button("新建提示词笔记") {
+                    createKind = .note
                     showingCreateSheet = true
                 }
-                Button("导入") {
-                    // TODO: Import functionality
+                .accessibilityIdentifier("prompt.create.note")
+                Button("新建模板") {
+                    createKind = .template
+                    showingCreateSheet = true
                 }
-                Button("选择") {
-                    // TODO: Select mode
-                }
+                .accessibilityIdentifier("prompt.create.template")
                 Button("取消", role: .cancel) {}
             }
         }
@@ -128,7 +152,7 @@ struct PromptCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "message")
+                Image(systemName: prompt.kind.icon)
                     .font(.title3)
                     .foregroundColor(.accent)
                     .frame(width: 40, height: 40)
@@ -139,6 +163,10 @@ struct PromptCardView: View {
                     Text(prompt.title)
                         .font(.headline)
                         .foregroundColor(.textPrimary)
+
+                    Text(prompt.kind.title)
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
 
                     if let description = prompt.description, !description.isEmpty {
                         Text(description)
@@ -180,7 +208,7 @@ struct PromptCardView: View {
                             }
                         }
 
-                        Text("昨天")
+                        Text(prompt.updatedAt, style: .date)
                             .font(.caption)
                             .foregroundColor(.textTertiary)
 
