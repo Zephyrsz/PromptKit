@@ -23,7 +23,7 @@ final class SQLiteStore {
             sqlite3_busy_timeout(database, 3000)
             try execute("PRAGMA journal_mode = WAL")
             let version = try query("PRAGMA user_version") { Int(sqlite3_column_int($0, 0)) }.first ?? 0
-            guard version <= 1 else { throw StorageError.message("数据库版本较新，请升级 App 后重试。") }
+            guard version <= 2 else { throw StorageError.message("数据库版本较新，请升级 App 后重试。") }
             if version == 0 {
                 try execute("BEGIN IMMEDIATE")
                 do {
@@ -58,6 +58,25 @@ final class SQLiteStore {
                     throw error
                 }
             }
+            if version < 2 {
+                try execute("BEGIN IMMEDIATE")
+                do {
+                    try execute("""
+                        CREATE TABLE import_receipts (
+                            source TEXT NOT NULL,
+                            entity TEXT NOT NULL,
+                            source_id INTEGER NOT NULL,
+                            local_id INTEGER NOT NULL,
+                            PRIMARY KEY (source, entity, source_id)
+                        )
+                        """)
+                    try execute("PRAGMA user_version = 2")
+                    try execute("COMMIT")
+                } catch {
+                    try? execute("ROLLBACK")
+                    throw error
+                }
+            }
         } catch {
             sqlite3_close(database)
             database = nil
@@ -66,6 +85,54 @@ final class SQLiteStore {
     }
 
     deinit { sqlite3_close(database) }
+
+    func importWebSnapshot(from url: URL) throws {
+        let snapshot = try WebImportSnapshot.read(from: url)
+        try execute("BEGIN IMMEDIATE")
+        do {
+            var knownTags = Dictionary(try loadTags().map { ($0.name, $0.id) }, uniquingKeysWith: { first, _ in first })
+            func ensureTag(name: String, color: String, createdAt: Date, updatedAt: Date) throws -> Int {
+                if let id = knownTags[name] { return id }
+                try execute("INSERT INTO tags (name, color, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                            [.text(name), .text(color), .number(createdAt.timeIntervalSince1970), .number(updatedAt.timeIntervalSince1970)])
+                let id = Int(sqlite3_last_insert_rowid(database))
+                knownTags[name] = id
+                return id
+            }
+            for tag in snapshot.tags where try !hasImported(entity: "tag", id: tag.id) {
+                let localID = try ensureTag(name: tag.name, color: tag.color, createdAt: tag.createdAt, updatedAt: tag.updatedAt)
+                try recordImport(entity: "tag", sourceID: tag.id, localID: localID)
+            }
+            for prompt in snapshot.prompts where try !hasImported(entity: "prompt", id: prompt.id) {
+                for name in prompt.tags {
+                    _ = try ensureTag(name: name, color: "#78C4ED", createdAt: prompt.createdAt, updatedAt: prompt.updatedAt)
+                }
+                try execute("""
+                    INSERT INTO prompts (title, description, prompt_text, tags, usage_notes, is_favorite,
+                        is_template, template_vars, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, [.text(prompt.title), optional(prompt.description), .text(prompt.promptText), .text(try encodeArray(prompt.tags)),
+                          optional(prompt.usageNotes), .integer(prompt.isFavorite ? 1 : 0), .integer(prompt.isTemplate ? 1 : 0),
+                          try prompt.templateVars.map { .text(try encodeArray($0)) } ?? .null,
+                          .number(prompt.createdAt.timeIntervalSince1970), .number(prompt.updatedAt.timeIntervalSince1970)])
+                try recordImport(entity: "prompt", sourceID: prompt.id, localID: Int(sqlite3_last_insert_rowid(database)))
+            }
+            try execute("COMMIT")
+        } catch {
+            try? execute("ROLLBACK")
+            throw error
+        }
+    }
+
+    private func hasImported(entity: String, id: Int) throws -> Bool {
+        try !query("SELECT 1 FROM import_receipts WHERE source=? AND entity=? AND source_id=?",
+                   [.text(WebImportSnapshot.sourceID), .text(entity), .integer(id)]) { _ in true }.isEmpty
+    }
+
+    private func recordImport(entity: String, sourceID: Int, localID: Int) throws {
+        // Receipts survive local edits/deletions so a later launch cannot resurrect records.
+        try execute("INSERT INTO import_receipts (source, entity, source_id, local_id) VALUES (?, ?, ?, ?)",
+                    [.text(WebImportSnapshot.sourceID), .text(entity), .integer(sourceID), .integer(localID)])
+    }
 
     func loadPrompts() throws -> [Prompt] {
         try query("SELECT id, title, description, prompt_text, tags, usage_notes, is_favorite, is_template, template_vars, created_at, updated_at FROM prompts ORDER BY updated_at DESC, id DESC") { statement in
@@ -182,8 +249,8 @@ final class SQLiteStore {
         guard result == SQLITE_DONE else { throw databaseError() }
     }
 
-    private func query<T>(_ sql: String, row: (OpaquePointer) throws -> T) throws -> [T] {
-        let statement = try prepare(sql, [])
+    private func query<T>(_ sql: String, _ values: [Value] = [], row: (OpaquePointer) throws -> T) throws -> [T] {
+        let statement = try prepare(sql, values)
         defer { sqlite3_finalize(statement) }
         var rows: [T] = []
         var result = sqlite3_step(statement)

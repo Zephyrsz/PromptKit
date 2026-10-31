@@ -1,8 +1,115 @@
 import Foundation
 import XCTest
+import SQLite3
 @testable import PromptKit
 
 final class PromptKitTests: XCTestCase {
+    @MainActor
+    func testV1MigrationAndImportFailureKeepLocalDataAndAllowRetry() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString)/PromptKit.sqlite")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let source = try XCTUnwrap(Bundle.main.url(forResource: "WebPrompts", withExtension: "sqlite"))
+        let originalSource = try Data(contentsOf: source)
+        do {
+            let local = DataStore(databaseURL: url)
+            let saved = await local.createPrompt(CreatePromptInput(title: "升级前内容", description: nil, promptText: "原文", tags: [], usageNotes: nil, isFavorite: false, isTemplate: false, templateVars: nil))
+            XCTAssertTrue(saved)
+        }
+        try executeSQL("DROP TABLE import_receipts; PRAGMA user_version=1; CREATE TRIGGER fail_import BEFORE INSERT ON prompts BEGIN SELECT RAISE(ABORT, 'test failed write'); END;", at: url)
+        let failed = DataStore(databaseURL: url, importURL: source)
+        XCTAssertNotNil(failed.importErrorMessage)
+        XCTAssertEqual(failed.prompts.map(\.title), ["升级前内容"])
+        XCTAssertTrue(failed.tags.isEmpty)
+        try executeSQL("DROP TRIGGER fail_import", at: url)
+        let retried = DataStore(databaseURL: url, importURL: source)
+        XCTAssertNil(retried.errorMessage)
+        XCTAssertNil(retried.importErrorMessage)
+        XCTAssertEqual(retried.prompts.count, 20)
+        XCTAssertEqual(retried.tags.count, 20)
+        XCTAssertEqual(retried.prompts.first { $0.title == "升级前内容" }?.promptText, "原文")
+        XCTAssertEqual(try Data(contentsOf: source), originalSource)
+    }
+
+    private func executeSQL(_ sql: String, at url: URL) throws {
+        var db: OpaquePointer?
+        guard sqlite3_open(url.path, &db) == SQLITE_OK else { throw StorageError.message("Test database could not open") }
+        defer { sqlite3_close(db) }
+        guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
+            throw StorageError.message(String(cString: sqlite3_errmsg(db)))
+        }
+    }
+
+    func testBundledWebSnapshotHasAllOriginalDataAndRecoverableTags() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "WebPrompts", withExtension: "sqlite"))
+        let snapshot = try WebImportSnapshot.read(from: url)
+        XCTAssertEqual(snapshot.prompts.count, 19)
+        XCTAssertEqual(snapshot.prompts.filter(\.isTemplate).count, 7)
+        XCTAssertEqual(snapshot.tags.count, 13)
+        XCTAssertEqual(Set(snapshot.prompts.flatMap(\.tags)).subtracting(snapshot.tags.map(\.name)),
+                       Set(["IT", "健康", "工具", "生活", "知识", "编程", "趣味"]))
+        let note = try XCTUnwrap(snapshot.prompts.first { $0.id == 3 })
+        XCTAssertEqual(note.title, "提示词修改器")
+        XCTAssertEqual(note.createdAt.timeIntervalSince1970, 1762219964.697, accuracy: 0.001)
+        XCTAssertEqual(snapshot.tags.first { $0.name == "AI" }?.color, "#F97316")
+    }
+
+    @MainActor
+    func testWebImportMergesWithoutOverwritingAndDoesNotDuplicateOnReopen() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString)/PromptKit.sqlite")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let source = try XCTUnwrap(Bundle.main.url(forResource: "WebPrompts", withExtension: "sqlite"))
+        let original = try WebImportSnapshot.read(from: source)
+        let local = DataStore(databaseURL: url)
+        let saved = await local.createPrompt(CreatePromptInput(title: "本地内容", description: nil, promptText: "保留本地数据", tags: [], usageNotes: nil, isFavorite: true, isTemplate: false, templateVars: nil))
+        XCTAssertTrue(saved)
+        let tagSaved = await local.createTag(CreateTagInput(name: "AI", color: "#123456"))
+        XCTAssertTrue(tagSaved)
+        let store = DataStore(databaseURL: url, importURL: source)
+        XCTAssertNil(store.errorMessage)
+        XCTAssertEqual(store.prompts.count, 20)
+        XCTAssertEqual(store.tags.count, 20)
+        XCTAssertEqual(store.tags.first { $0.name == "AI" }?.color, "#123456")
+        XCTAssertEqual(store.prompts.first { $0.title == "本地内容" }?.promptText, "保留本地数据")
+        for incoming in original.prompts {
+            let imported = try XCTUnwrap(store.prompts.first { $0.title == incoming.title })
+            XCTAssertEqual(imported.promptText, incoming.promptText)
+            XCTAssertEqual(imported.description, incoming.description)
+            XCTAssertEqual(imported.usageNotes, incoming.usageNotes)
+            XCTAssertEqual(imported.tags, incoming.tags)
+            XCTAssertEqual(imported.isTemplate, incoming.isTemplate)
+            XCTAssertEqual(imported.isFavorite, incoming.isFavorite)
+            XCTAssertEqual(imported.templateVars, incoming.templateVars)
+            XCTAssertEqual(imported.createdAt, incoming.createdAt)
+            XCTAssertEqual(imported.updatedAt, incoming.updatedAt)
+        }
+        let prompt = try XCTUnwrap(store.prompts.first { $0.title == "sql generator" })
+        let updated = await store.updatePrompt(id: prompt.id, input: CreatePromptInput(editing: prompt, title: "本地修改后的模板", promptText: prompt.promptText, tags: prompt.tags, kind: .template))
+        XCTAssertTrue(updated)
+        let deleted = await store.deletePrompt(id: try XCTUnwrap(store.prompts.first { $0.title == "提示词修改器" }).id)
+        XCTAssertTrue(deleted)
+        let reopened = DataStore(databaseURL: url, importURL: source)
+        XCTAssertNil(reopened.errorMessage)
+        XCTAssertEqual(reopened.prompts.count, 19)
+        XCTAssertEqual(reopened.tags.count, 20)
+        XCTAssertTrue(reopened.prompts.contains { $0.title == "本地修改后的模板" })
+        XCTAssertFalse(reopened.prompts.contains { $0.title == "sql generator" || $0.title == "提示词修改器" })
+    }
+
+    func testLibraryFilterCombinesAnySelectedTagWithKindQueryAndFavorites() {
+        let prompts = [
+            Prompt(id: 1, title: "AI 笔记", promptText: "中文正文", tags: ["AI", "工具"], isFavorite: true),
+            Prompt(id: 2, title: "SQL 模板", description: "数据库检索", promptText: "${需求}", tags: ["编程"], isTemplate: true),
+            Prompt(id: 3, title: "无标签", promptText: "正文"),
+        ]
+        XCTAssertEqual(PromptLibraryFilter(selectedTags: ["AI", "编程"]).apply(to: prompts).map(\.id), [1, 2])
+        XCTAssertEqual(PromptLibraryFilter(kind: .template, selectedTags: ["AI", "编程"], query: "数据库").apply(to: prompts).map(\.id), [2])
+        XCTAssertEqual(PromptLibraryFilter(selectedTags: ["AI", "编程"], favoritesOnly: true).apply(to: prompts).map(\.id), [1])
+        XCTAssertEqual(PromptLibraryFilter(query: "  sql \n").apply(to: prompts).map(\.id), [2])
+        XCTAssertEqual(PromptLibraryFilter(query: "工具").apply(to: prompts).map(\.id), [1])
+        XCTAssertEqual(PromptLibraryFilter().apply(to: prompts).count, 3)
+        XCTAssertTrue(PromptLibraryFilter(selectedTags: ["不存在"]).apply(to: prompts).isEmpty)
+    }
+
     @MainActor
     func testTagCanBeCreatedWithoutBackend() async {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString)/PromptKit.sqlite")

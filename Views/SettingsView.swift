@@ -7,7 +7,7 @@ struct SettingsView: View {
     @State private var iCloudSyncEnabled = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.surface1.ignoresSafeArea()
 
@@ -19,25 +19,26 @@ struct SettingsView: View {
                         } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: "checkmark.shield.fill")
-                                    .font(.title2)
+                                    .font(AppTypography.title)
                                     .foregroundColor(.accent)
-                                    .frame(width: 50, height: 50)
+                                    .frame(width: 40, height: 40)
                                     .background(Color.accent.opacity(0.15))
-                                    .clipShape(Circle())
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Pro")
-                                        .font(.headline)
+                                        .font(AppTypography.section)
                                         .foregroundColor(.textPrimary)
 
                                     Text("高级版已激活・年度")
-                                        .font(.caption)
+                                        .font(AppTypography.caption)
                                         .foregroundColor(.textSecondary)
                                 }
 
                                 Spacer()
 
                                 Image(systemName: "chevron.right")
+                                    .font(.system(.footnote, design: .default).weight(.semibold))
                                     .foregroundColor(.textTertiary)
                             }
                         }
@@ -49,8 +50,10 @@ struct SettingsView: View {
                         NavigationLink {
                             LanguageSettingsView()
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "globe")
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
                                     .foregroundColor(.accent)
 
                                 Text("语言")
@@ -66,9 +69,11 @@ struct SettingsView: View {
                         NavigationLink {
                             AppearanceSettingsView()
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "circle.lefthalf.filled")
-                                    .foregroundColor(.purple)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
                                 Text("外观")
                                     .foregroundColor(.textPrimary)
@@ -87,9 +92,11 @@ struct SettingsView: View {
                         Button {
                             showingTagManagement = true
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "tag")
-                                    .foregroundColor(.orange)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
                                 Text("标签管理")
                                     .foregroundColor(.textPrimary)
@@ -97,6 +104,7 @@ struct SettingsView: View {
                                 Spacer()
 
                                 Image(systemName: "chevron.right")
+                                    .font(.system(.footnote, design: .default).weight(.semibold))
                                     .foregroundColor(.textTertiary)
                             }
                         }
@@ -104,9 +112,11 @@ struct SettingsView: View {
                         Button {
                             showingExport = true
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "square.and.arrow.up")
-                                    .foregroundColor(.blue)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
                                 Text("数据导出")
                                     .foregroundColor(.textPrimary)
@@ -114,14 +124,17 @@ struct SettingsView: View {
                                 Spacer()
 
                                 Image(systemName: "chevron.right")
+                                    .font(.system(.footnote, design: .default).weight(.semibold))
                                     .foregroundColor(.textTertiary)
                             }
                         }
 
                         Toggle(isOn: $iCloudSyncEnabled) {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "icloud")
-                                    .foregroundColor(.cyan)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
                                 Text("iCloud 同步")
                                     .foregroundColor(.textPrimary)
@@ -136,9 +149,11 @@ struct SettingsView: View {
                         NavigationLink {
                             AboutView()
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "info.circle")
-                                    .foregroundColor(.blue)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
                                 Text("关于")
                                     .foregroundColor(.textPrimary)
@@ -148,9 +163,11 @@ struct SettingsView: View {
                         NavigationLink {
                             PrivacyPolicyView()
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "hand.raised")
-                                    .foregroundColor(.green)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
                                 Text("隐私政策")
                                     .foregroundColor(.textPrimary)
@@ -160,9 +177,11 @@ struct SettingsView: View {
                         NavigationLink {
                             TermsOfServiceView()
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "doc.text")
-                                    .foregroundColor(.gray)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
                                 Text("服务条款")
                                     .foregroundColor(.textPrimary)
@@ -172,9 +191,11 @@ struct SettingsView: View {
                         Button {
                             // TODO: Feedback
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "envelope")
-                                    .foregroundColor(.purple)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
                                 Text("反馈")
                                     .foregroundColor(.textPrimary)
@@ -182,6 +203,7 @@ struct SettingsView: View {
                                 Spacer()
 
                                 Image(systemName: "chevron.right")
+                                    .font(.system(.footnote, design: .default).weight(.semibold))
                                     .foregroundColor(.textTertiary)
                             }
                         }
@@ -189,16 +211,19 @@ struct SettingsView: View {
                         Button {
                             // TODO: Rating
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "star")
-                                    .foregroundColor(.yellow)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
-                                Text("给 PromptKit 评分")
+                                Text("给 \(AppBrand.name) 评分")
                                     .foregroundColor(.textPrimary)
 
                                 Spacer()
 
                                 Image(systemName: "chevron.right")
+                                    .font(.system(.footnote, design: .default).weight(.semibold))
                                     .foregroundColor(.textTertiary)
                             }
                         }
@@ -206,9 +231,11 @@ struct SettingsView: View {
                         Button {
                             // TODO: QQ Group
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: "message.circle")
-                                    .foregroundColor(.cyan)
+                                    .font(AppTypography.body)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.accent)
 
                                 Text("QQ 交流群")
                                     .foregroundColor(.textPrimary)
@@ -216,6 +243,7 @@ struct SettingsView: View {
                                 Spacer()
 
                                 Image(systemName: "chevron.right")
+                                    .font(.system(.footnote, design: .default).weight(.semibold))
                                     .foregroundColor(.textTertiary)
                             }
                         }
@@ -223,11 +251,9 @@ struct SettingsView: View {
                     .listRowBackground(Color.surface3)
 
                     // Other Apps
-                    Section(header: Text("开发者的其他应用").foregroundColor(.textSecondary)) {
-                        // Placeholder for other apps
-                    }
-                    .listRowBackground(Color.surface3)
                 }
+                .listStyle(.insetGrouped)
+                .environment(\.defaultMinListRowHeight, 52)
                 .scrollContentBackground(.hidden)
             }
             .navigationTitle("设置")
@@ -249,7 +275,7 @@ struct TagManagementView: View {
     @State private var tagToDelete: Tag?
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.surface1.ignoresSafeArea()
 
@@ -259,7 +285,7 @@ struct TagManagementView: View {
                             .foregroundColor(.red)
                     }
                     ForEach(dataStore.tags) { tag in
-                        HStack {
+                        HStack(spacing: 12) {
                             Circle()
                                 .fill(tag.swiftUIColor)
                                 .frame(width: 12, height: 12)
@@ -274,11 +300,16 @@ struct TagManagementView: View {
                             } label: {
                                 Image(systemName: "trash")
                                     .foregroundColor(.red)
+                                    .frame(width: 44, height: 44)
                             }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("删除标签 \(tag.name)")
                         }
                     }
                     .listRowBackground(Color.surface3)
                 }
+                .listStyle(.insetGrouped)
+                .environment(\.defaultMinListRowHeight, 52)
                 .scrollContentBackground(.hidden)
             }
             .navigationTitle("标签管理")
@@ -296,6 +327,8 @@ struct TagManagementView: View {
                         showingCreateTag = true
                     } label: {
                         Image(systemName: "plus")
+                            .font(AppTypography.body)
+                            .frame(width: 24, height: 24)
                             .foregroundColor(.accent)
                     }
                     .accessibilityIdentifier("tag.add")
@@ -334,7 +367,7 @@ struct DataExportView: View {
     @EnvironmentObject var dataStore: DataStore
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.surface1.ignoresSafeArea()
 
@@ -344,7 +377,7 @@ struct DataExportView: View {
                         .foregroundColor(.accent)
 
                     Text("导出数据")
-                        .font(.title2)
+                        .font(AppTypography.title)
                         .fontWeight(.bold)
                         .foregroundColor(.textPrimary)
 
@@ -359,15 +392,10 @@ struct DataExportView: View {
                         exportData()
                     } label: {
                         Text("导出")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.accent)
-                            .cornerRadius(999)
                     }
+                    .buttonStyle(AppPrimaryButtonStyle())
                 }
-                .padding()
+                .padding(AppSpacing.page)
             }
             .navigationTitle("数据导出")
             .navigationBarTitleDisplayMode(.inline)
@@ -422,10 +450,7 @@ struct AboutView: View {
                     .font(.system(size: 80))
                     .foregroundColor(.accent)
 
-                Text("PromptKit")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(.textPrimary)
+                AppWordmark()
 
                 Text("版本 1.0.0")
                     .font(.body)

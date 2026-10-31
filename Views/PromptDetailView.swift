@@ -15,20 +15,22 @@ struct PromptDetailView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.surface1.ignoresSafeArea()
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: AppSpacing.section) {
                         VStack(alignment: .leading, spacing: 8) {
                             Label(prompt.title, systemImage: prompt.kind.icon)
-                                .font(.title2.bold())
+                                .font(AppTypography.title)
                                 .foregroundColor(.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
                             Text(prompt.kind.title)
-                                .font(.caption)
+                                .font(AppTypography.caption)
                                 .foregroundColor(.textSecondary)
                             if let description = prompt.description, !description.isEmpty {
-                                Text(description).foregroundColor(.textSecondary)
+                                Text(description).font(AppTypography.secondary).foregroundColor(.textSecondary)
+                                    .lineSpacing(4)
                             }
                         }
 
@@ -36,11 +38,7 @@ struct PromptDetailView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack {
                                     ForEach(prompt.tags, id: \.self) { name in
-                                        Text(name)
-                                            .font(.caption)
-                                            .padding(8)
-                                            .background(Color.surface4)
-                                            .cornerRadius(8)
+                                        AppTagChip(name: name, color: dataStore.tags.first { $0.name == name }?.swiftUIColor ?? .accent)
                                     }
                                 }
                             }
@@ -51,10 +49,14 @@ struct PromptDetailView: View {
 
                         if let notes = prompt.usageNotes, !notes.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("使用说明").font(.headline)
+                                Text("使用说明").font(AppTypography.section)
                                 Text(notes).foregroundColor(.textSecondary)
+                                    .font(AppTypography.body)
+                                    .lineSpacing(5)
                             }
                             .foregroundColor(.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .appCard()
                         }
 
                         HStack(spacing: 20) {
@@ -62,19 +64,21 @@ struct PromptDetailView: View {
                                 Label("编辑", systemImage: "pencil")
                             }
                             .accessibilityIdentifier("prompt.edit")
+                            .buttonStyle(.bordered)
                             Spacer()
                             Button(role: .destructive) { showingDeleteAlert = true } label: {
                                 Label("删除", systemImage: "trash")
                             }
                             .accessibilityIdentifier("prompt.delete")
+                            .buttonStyle(.bordered)
                         }
-                        .padding(.vertical)
+                        .controlSize(.large)
 
                         if let actionError = actionError {
                             Text(actionError).font(.callout).foregroundColor(.red)
                         }
                     }
-                    .padding()
+                    .padding(AppSpacing.page)
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
@@ -94,7 +98,7 @@ struct PromptDetailView: View {
                         }
                     } label: {
                         Image(systemName: prompt.isFavorite ? "star.fill" : "star")
-                            .foregroundColor(prompt.isFavorite ? .yellow : .textSecondary)
+                            .foregroundColor(prompt.isFavorite ? .accent : .textSecondary)
                     }
                     .accessibilityIdentifier("prompt.favorite")
                     .accessibilityLabel(prompt.isFavorite ? "取消收藏" : "收藏")
@@ -123,42 +127,40 @@ struct PromptUsageView: View {
     private var missing: [String] { prompt.missingVariables(in: values) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: AppSpacing.section) {
             if !prompt.variableNames.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("填写变量").font(.headline).foregroundColor(.textPrimary)
+                    Text("填写变量").font(AppTypography.section).foregroundColor(.textPrimary)
                     ForEach(prompt.variableNames, id: \.self) { name in
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(name).font(.subheadline).foregroundColor(.textSecondary)
+                            Text(name).font(AppTypography.secondary.weight(.medium)).foregroundColor(.textSecondary)
                             TextField("输入 \(name)", text: Binding(
                                 get: { values[name] ?? "" }, set: { values[name] = $0 }
                             ), axis: .vertical)
                             .accessibilityIdentifier("variable.\(name)")
-                            .foregroundColor(.textPrimary)
-                            .padding(12)
-                            .background(Color.surface2)
-                            .cornerRadius(8)
+                            .accessibilityLabel(name)
+                            .appInput()
                         }
                     }
                 }
-                .padding()
-                .background(Color.surface3)
-                .cornerRadius(12)
+                .appCard()
             }
 
             VStack(alignment: .leading, spacing: 12) {
                 Text(prompt.isTemplate ? "生成结果" : "提示词内容")
-                    .font(.headline)
+                    .font(AppTypography.section)
                     .foregroundColor(.textPrimary)
                 Text(prompt.rendered(with: values))
                     .accessibilityIdentifier("prompt.result")
                     .textSelection(.enabled)
                     .foregroundColor(.textPrimary)
+                    .font(AppTypography.body)
+                    .lineSpacing(6)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if !missing.isEmpty {
                     Text("待填写：\(missing.joined(separator: "、"))")
-                        .font(.caption)
+                        .font(AppTypography.caption)
                         .foregroundColor(.textSecondary)
                 }
 
@@ -167,19 +169,12 @@ struct PromptUsageView: View {
                     showingCopiedAlert = true
                 } label: {
                     Label(prompt.isTemplate ? "生成并复制" : "复制笔记", systemImage: "doc.on.doc")
-                        .font(.headline)
-                        .foregroundColor(missing.isEmpty ? .surface1 : .textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(missing.isEmpty ? Color.accent : Color.surface4)
-                        .cornerRadius(12)
                 }
+                .buttonStyle(AppPrimaryButtonStyle())
                 .accessibilityIdentifier("prompt.copy")
                 .disabled(!missing.isEmpty)
             }
-            .padding()
-            .background(Color.surface3)
-            .cornerRadius(12)
+            .appCard()
         }
         .onChange(of: prompt.promptText) { _ in values = [:] }
         .onChange(of: prompt.isTemplate) { _ in values = [:] }

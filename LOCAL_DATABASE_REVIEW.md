@@ -1,6 +1,6 @@
 # PromptKit 本地数据库与 D1 数据迁移审查
 
-> 2026-10-22 现状更新：App 已使用系统 SQLite3，在 iPhone Application Support 中持久保存笔记、模板、标签和收藏。本文以下内容为 2026-10-11 的历史审查及迁移建议；不再表示当前 App 仍依赖后端。当前实现见 [README](README.md) 和 `Services/SQLiteStore.swift`。Web/D1 数据导入及同步仍未实现。
+> 2026-10-22 现状更新：App 已使用系统 SQLite3（schema v2），在 iPhone Application Support 中持久保存笔记、模板、标签和收藏，并在启动时通过事务合并内置 Web SQLite 快照。当前快照为 19 条内容（12 条笔记、7 个模板）、13 个源标签，另补齐 7 个缺失引用标签；来源收据防止重复导入、覆盖本地编辑或恢复已删除记录。本文以下内容为 2026-10-11 的历史审查及迁移建议，包含的旧数据数量不代表本次快照。当前实现见 [README](README.md)、`Services/SQLiteStore.swift` 和 [验证记录](docs/validation/2026-10-22-web-library-import.md)。线上 D1 导入、实时同步及跨设备同步仍未实现。
 
 审查日期：2026-10-11。
 

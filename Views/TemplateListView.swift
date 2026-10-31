@@ -1,224 +1,75 @@
 import SwiftUI
 
 struct TemplateListView: View {
-    @EnvironmentObject var dataStore: DataStore
-    @State private var searchText = ""
-    @State private var showingCreateSheet = false
-    @State private var showingMenu = false
-    @State private var selectedPrompt: Prompt?
-    @State private var selectedKind: PromptKind?
-    @State private var createKind: PromptKind = .note
-
-    var filteredPrompts: [Prompt] {
-        dataStore.prompts.filter { prompt in
-            (selectedKind == nil || prompt.kind == selectedKind) &&
-            (searchText.isEmpty || prompt.title.localizedCaseInsensitiveContains(searchText) ||
-             (prompt.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-             prompt.promptText.localizedCaseInsensitiveContains(searchText) ||
-             prompt.tags.contains { $0.localizedCaseInsensitiveContains(searchText) })
-        }
-    }
-
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.surface1.ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.textTertiary)
-
-                        TextField("搜索笔记、模板或标签", text: $searchText)
-                            .foregroundColor(.textPrimary)
-                    }
-                    .padding()
-                    .background(Color.surface3)
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-
-                    Picker("内容分类", selection: $selectedKind) {
-                        Text("全部").tag(PromptKind?.none)
-                        Text("笔记").tag(PromptKind?.some(.note))
-                        Text("模板").tag(PromptKind?.some(.template))
-                    }
-                    .pickerStyle(.segmented)
-                    .padding()
-                    .accessibilityIdentifier("prompt.filter")
-
-                    if let message = dataStore.errorMessage {
-                        Text(message)
-                            .font(.callout)
-                            .foregroundColor(.red)
-                            .padding(.horizontal)
-                    }
-
-                    // Prompts list
-                    if dataStore.isLoading {
-                        Spacer()
-                        ProgressView()
-                            .tint(.accent)
-                        Spacer()
-                    } else if filteredPrompts.isEmpty {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 48))
-                                .foregroundColor(.textTertiary)
-                            Text(searchText.isEmpty ? "暂无\(selectedKind?.title ?? "笔记或模板")" : "没有匹配的内容")
-                                .foregroundColor(.textSecondary)
-                            Button("新建\(selectedKind?.title ?? "提示词笔记")") {
-                                createKind = selectedKind ?? .note
-                                showingCreateSheet = true
-                            }
-                            .foregroundColor(.accent)
-                        }
-                        Spacer()
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(filteredPrompts) { prompt in
-                                    PromptCardView(prompt: prompt)
-                                        .onTapGesture {
-                                            selectedPrompt = prompt
-                                        }
-                                }
-                            }
-                            .padding()
-                        }
-                    }
-                }
-
-                // Add button
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Button {
-                            showingMenu = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                                .frame(width: 56, height: 56)
-                                .background(Color.surface4)
-                                .clipShape(Circle())
-                                .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                        }
-                        .accessibilityIdentifier("prompt.add")
-                        .accessibilityLabel("新建提示词")
-                        .padding(.trailing, 24)
-                        .padding(.bottom, 24)
-                    }
-                }
-            }
-            .navigationTitle("PromptKit")
-            .navigationBarTitleDisplayMode(.large)
-            .onAppear {
-                Task {
-                    await dataStore.loadPrompts()
-                    await dataStore.loadTags()
-                }
-            }
-            .sheet(isPresented: $showingCreateSheet) {
-                EditPromptView(prompt: nil, initialKind: createKind)
-            }
-            .sheet(item: $selectedPrompt) { prompt in
-                PromptDetailView(prompt: prompt)
-            }
-            .confirmationDialog("", isPresented: $showingMenu, titleVisibility: .hidden) {
-                Button("新建提示词笔记") {
-                    createKind = .note
-                    showingCreateSheet = true
-                }
-                .accessibilityIdentifier("prompt.create.note")
-                Button("新建模板") {
-                    createKind = .template
-                    showingCreateSheet = true
-                }
-                .accessibilityIdentifier("prompt.create.template")
-                Button("取消", role: .cancel) {}
-            }
-        }
+        PromptLibraryView(favoritesOnly: false)
     }
 }
 
 struct PromptCardView: View {
     let prompt: Prompt
-    @EnvironmentObject var dataStore: DataStore
+    var onOpen: () -> Void
+    @EnvironmentObject private var dataStore: DataStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: prompt.kind.icon)
-                    .font(.title3)
-                    .foregroundColor(.accent)
-                    .frame(width: 40, height: 40)
-                    .background(Color.accent.opacity(0.15))
-                    .cornerRadius(8)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(prompt.title)
-                        .font(.headline)
-                        .foregroundColor(.textPrimary)
-
-                    Text(prompt.kind.title)
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
-
-                    if let description = prompt.description, !description.isEmpty {
-                        Text(description)
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                            .lineLimit(1)
+            HStack(alignment: .top, spacing: 12) {
+                Button(action: onOpen) {
+                    HStack(alignment: .top, spacing: 12) {
+                        if !dynamicTypeSize.isAccessibilitySize {
+                            AppIconTile(symbol: prompt.kind.icon)
+                        }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(prompt.title)
+                                .font(AppTypography.section)
+                                .foregroundColor(.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(prompt.description.flatMap { $0.isEmpty ? nil : $0 } ?? prompt.promptText)
+                                .font(AppTypography.secondary)
+                                .foregroundColor(.textSecondary)
+                                .lineLimit(2)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .contentShape(Rectangle())
                 }
-
-                Spacer()
+                .buttonStyle(.plain)
+                .accessibilityHint("打开\(prompt.kind.title)")
 
                 Button {
-                    Task {
-                        await dataStore.toggleFavorite(prompt: prompt)
-                    }
+                    Task { await dataStore.toggleFavorite(prompt: prompt) }
                 } label: {
                     Image(systemName: prompt.isFavorite ? "star.fill" : "star")
-                        .foregroundColor(prompt.isFavorite ? .yellow : .textTertiary)
+                        .font(AppTypography.body)
+                        .foregroundColor(prompt.isFavorite ? .accent : .textTertiary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(prompt.isFavorite ? "取消收藏 \(prompt.title)" : "收藏 \(prompt.title)")
+                .accessibilityValue(prompt.isFavorite ? "已收藏" : "未收藏")
             }
 
-            // Tags
             if !prompt.tags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "equal")
-                            .font(.caption)
-                            .foregroundColor(.textTertiary)
-
-                        ForEach(prompt.tags, id: \.self) { tagName in
-                            if let tag = dataStore.tags.first(where: { $0.name == tagName }) {
-                                Text(tag.name)
-                                    .font(.caption)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(tag.swiftUIColor.opacity(0.3))
-                                    .cornerRadius(4)
-                            }
+                    HStack(spacing: 6) {
+                        ForEach(prompt.tags, id: \.self) { name in
+                            AppTagChip(name: name, color: dataStore.tags.first { $0.name == name }?.swiftUIColor ?? .accent)
                         }
-
-                        Text(prompt.updatedAt, style: .date)
-                            .font(.caption)
-                            .foregroundColor(.textTertiary)
-
-                        Spacer()
                     }
                 }
             }
+
+            HStack(alignment: .firstTextBaseline) {
+                Label(prompt.kind.title, systemImage: prompt.kind.icon)
+                Spacer(minLength: 8)
+                Text(prompt.updatedAt, style: .date)
+                    .monospacedDigit()
+            }
+            .font(AppTypography.caption)
+            .foregroundColor(.textTertiary)
         }
-        .padding()
-        .background(Color.surface3)
-        .cornerRadius(12)
+        .appCard()
     }
 }

@@ -14,72 +14,68 @@ struct VariableInputView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.surface1.ignoresSafeArea()
 
-                VStack(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("变量名称")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
-
-                        TextField("例如: 主题、产品名称", text: $varName)
-                            .foregroundColor(.textPrimary)
-                            .padding()
-                            .background(Color.surface3)
-                            .cornerRadius(12)
-
-                        Text("将在模板中插入 ${\(trimmedName.isEmpty ? "变量名" : trimmedName)}")
-                            .font(.caption)
-                            .foregroundColor(.textSecondary)
-                    }
-
-                    if !templateVars.isEmpty {
+                ScrollView {
+                    VStack(spacing: AppSpacing.section) {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("已有变量")
-                                .font(.headline)
+                            Text("变量名称")
+                                .font(AppTypography.section)
                                 .foregroundColor(.textPrimary)
 
-                            ForEach(templateVars, id: \.self) { varName in
-                                HStack {
-                                    Text(varName)
-                                        .font(.body)
-                                        .foregroundColor(.accent)
+                            TextField("例如: 主题、产品名称", text: $varName)
+                                .accessibilityLabel("变量名称")
+                                .appInput()
 
-                                    Spacer()
+                            Text("将在模板中插入 ${\(trimmedName.isEmpty ? "变量名" : trimmedName)}")
+                                .font(AppTypography.caption)
+                                .foregroundColor(.textSecondary)
+                        }
 
-                                    Button {
-                                        promptText = TemplateText.render(promptText, values: [varName: varName])
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.textTertiary)
+                        if !templateVars.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("已有变量")
+                                    .font(AppTypography.section)
+                                    .foregroundColor(.textPrimary)
+
+                                ForEach(templateVars, id: \.self) { varName in
+                                    HStack {
+                                        Text(varName)
+                                            .font(.body)
+                                            .foregroundColor(.accent)
+
+                                        Spacer()
+
+                                        Button {
+                                            promptText = TemplateText.render(promptText, values: [varName: varName])
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundColor(.textTertiary)
+                                                .frame(width: 44, height: 44)
+                                        }
+                                        .accessibilityLabel("移除填空项 \(varName)")
                                     }
-                                    .accessibilityLabel("移除填空项 \(varName)")
+                                    .padding(AppSpacing.page)
+                                    .background(Color.surface3)
+                                    .cornerRadius(8)
                                 }
-                                .padding()
-                                .background(Color.surface3)
-                                .cornerRadius(8)
                             }
                         }
-                    }
 
-                    Spacer()
+                        Spacer()
 
-                    Button {
-                        addVariable()
-                    } label: {
-                        Text("插入变量")
-                            .font(.headline)
-                            .foregroundColor(isValid ? .surface1 : .textSecondary)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(isValid ? Color.accent : Color.surface4)
-                            .cornerRadius(999)
+                        Button {
+                            addVariable()
+                        } label: {
+                            Text("插入变量")
+                        }
+                        .buttonStyle(AppPrimaryButtonStyle())
+                        .disabled(!isValid)
                     }
-                    .disabled(!isValid)
+                    .padding(AppSpacing.page)
                 }
-                .padding()
             }
             .navigationTitle("添加替换项")
             .navigationBarTitleDisplayMode(.inline)

@@ -3,19 +3,28 @@ import SwiftUI
 
 @MainActor
 class DataStore: ObservableObject {
-    static let shared = DataStore()
+    static let shared = DataStore(importURL: Bundle.main.url(forResource: "WebPrompts", withExtension: "sqlite"))
 
     @Published private(set) var prompts: [Prompt] = []
     @Published private(set) var tags: [Tag] = []
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
+    @Published private(set) var importErrorMessage: String?
 
     private var database: SQLiteStore?
 
-    init(databaseURL: URL = SQLiteStore.defaultURL) {
+    init(databaseURL: URL = SQLiteStore.defaultURL, importURL: URL? = nil) {
         do {
             database = try SQLiteStore(url: databaseURL)
             try reload()
+            if let importURL {
+                do {
+                    try database?.importWebSnapshot(from: importURL)
+                    try reload()
+                } catch {
+                    importErrorMessage = "Web 数据导入失败：\(error.localizedDescription)；原有本地数据已保留。"
+                }
+            }
         } catch {
             errorMessage = "无法打开本地资料库：\(error.localizedDescription)"
         }
@@ -42,7 +51,7 @@ class DataStore: ObservableObject {
     }
 
     func toggleFavorite(prompt: Prompt) async {
-        guard let current = prompts.first(where: { $0.id == prompt.id }) else { return }
+        guard let currenft = prompts.first(where: { $0.id == prompt.id }) else { return }
         _ = perform { try $0.setFavorite(id: current.id, isFavorite: !current.isFavorite) }
     }
 

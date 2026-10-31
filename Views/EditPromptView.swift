@@ -31,11 +31,11 @@ struct EditPromptView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.surface1.ignoresSafeArea()
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: AppSpacing.section) {
                         Picker("内容类型", selection: $kind) {
                             ForEach(PromptKind.allCases) { kind in
                                 Text(kind.title).tag(kind)
@@ -44,26 +44,34 @@ struct EditPromptView: View {
                         .pickerStyle(.segmented)
                         .accessibilityIdentifier("prompt.kind")
 
-                        TextField(kind == .note ? "笔记标题" : "模板标题", text: $title)
-                            .accessibilityIdentifier("prompt.title")
-                            .foregroundColor(.textPrimary)
-                            .padding()
-                            .background(Color.surface3)
-                            .cornerRadius(12)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("标题")
+                                .font(AppTypography.section)
+                                .foregroundColor(.textPrimary)
+                            TextField(kind == .note ? "为笔记起个名字" : "为模板起个名字", text: $title)
+                                .accessibilityIdentifier("prompt.title")
+                                .accessibilityLabel("标题")
+                                .appInput()
+                        }
+                        .appCard()
 
                         VStack(alignment: .leading, spacing: 12) {
                             Text(kind == .note ? "提示词内容" : "模板内容")
-                                .font(.headline)
+                                .font(AppTypography.section)
                                 .foregroundColor(.textPrimary)
 
                             TextEditor(text: $promptText)
                                 .accessibilityIdentifier("prompt.body")
+                                .accessibilityLabel(kind == .note ? "提示词内容" : "模板内容")
+                                .font(AppTypography.body)
+                                .lineSpacing(5)
                                 .scrollContentBackground(.hidden)
                                 .foregroundColor(.textPrimary)
                                 .frame(minHeight: 220)
                                 .padding(8)
                                 .background(Color.surface2)
                                 .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.outline))
 
                             if kind == .template {
                                 Button {
@@ -73,26 +81,36 @@ struct EditPromptView: View {
                                 }
                                 .accessibilityIdentifier("variable.add")
                                 .foregroundColor(.accent)
+                                .frame(minHeight: 44, alignment: .leading)
 
                                 Text(variables.isEmpty ? "模板至少需要一个填空项，例如 ${主题}。" : "填空项（\(variables.count)）：\(variables.joined(separator: "、"))")
-                                    .font(.caption)
+                                    .font(AppTypography.caption)
                                     .foregroundColor(.textSecondary)
                             } else {
                                 Text("直接复制使用，正文中的占位符会原样保留。")
-                                    .font(.caption)
+                                    .font(AppTypography.caption)
                                     .foregroundColor(.textSecondary)
                             }
                         }
-                        .padding()
-                        .background(Color.surface3)
-                        .cornerRadius(12)
+                        .appCard()
 
                         VStack(alignment: .leading, spacing: 12) {
                             Button {
                                 showingTagPicker = true
                             } label: {
-                                Label("选择标签", systemImage: "tag")
-                                    .foregroundColor(.accent)
+                                HStack(spacing: 12) {
+                                    Label("选择标签", systemImage: "tag")
+                                        .font(AppTypography.section)
+                                        .foregroundColor(.textPrimary)
+                                    Spacer()
+                                    Text(selectedTags.isEmpty ? "可选" : "已选 \(selectedTags.count) 个")
+                                        .font(AppTypography.caption)
+                                        .foregroundColor(.textTertiary)
+                                    Image(systemName: "chevron.right")
+                                        .font(AppTypography.caption)
+                                        .foregroundColor(.textTertiary)
+                                }
+                                .frame(minHeight: 44)
                             }
                             .accessibilityIdentifier("prompt.tags")
 
@@ -104,8 +122,9 @@ struct EditPromptView: View {
                                                 selectedTags.remove(name)
                                             } label: {
                                                 Label(name, systemImage: "xmark.circle")
-                                                    .font(.caption)
-                                                    .padding(8)
+                                                    .font(AppTypography.caption)
+                                                    .padding(.horizontal, 10)
+                                                    .frame(minHeight: 44)
                                                     .background(Color.surface4)
                                                     .cornerRadius(8)
                                             }
@@ -116,10 +135,8 @@ struct EditPromptView: View {
                                 }
                             }
                         }
-                        .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.surface3)
-                        .cornerRadius(12)
+                        .appCard()
 
                         if kind == .template {
                             Button {
@@ -128,13 +145,14 @@ struct EditPromptView: View {
                                 Label("预设模板参考", systemImage: "books.vertical")
                             }
                             .foregroundColor(.accent)
+                            .frame(minHeight: 44)
                         }
 
                         Label("保存在此 iPhone 的本地资料库", systemImage: "internaldrive")
-                            .font(.caption)
+                            .font(AppTypography.caption)
                             .foregroundColor(.textSecondary)
                     }
-                    .padding()
+                    .padding(AppSpacing.page)
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
@@ -150,6 +168,7 @@ struct EditPromptView: View {
                         Task { await savePrompt() }
                     }
                     .accessibilityIdentifier("prompt.save")
+                    .font(AppTypography.section)
                     .disabled(!isValid || isSaving)
                 }
             }

@@ -8,7 +8,7 @@ struct TagPickerView: View {
     @State private var showingCreateTag = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.surface1.ignoresSafeArea()
 
@@ -21,7 +21,7 @@ struct TagPickerView: View {
                                 selectedTags.insert(tag.name)
                             }
                         } label: {
-                            HStack {
+                            HStack(spacing: 12) {
                                 Image(systemName: selectedTags.contains(tag.name) ? "checkmark.circle.fill" : "circle")
                                     .foregroundColor(selectedTags.contains(tag.name) ? .accent : .textTertiary)
 
@@ -38,6 +38,8 @@ struct TagPickerView: View {
                     }
                     .listRowBackground(Color.surface3)
                 }
+                .listStyle(.insetGrouped)
+                .environment(\.defaultMinListRowHeight, 52)
                 .scrollContentBackground(.hidden)
             }
             .navigationTitle("选择标签")
@@ -86,68 +88,71 @@ struct CreateTagView: View {
     ]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.surface1.ignoresSafeArea()
 
-                VStack(spacing: 20) {
-                    TextField("标签名称", text: $tagName)
-                        .accessibilityIdentifier("tag.name")
-                        .foregroundColor(.textPrimary)
-                        .padding()
-                        .background(Color.surface3)
-                        .cornerRadius(12)
+                ScrollView {
+                    VStack(spacing: AppSpacing.section) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("标签名称").font(AppTypography.section).foregroundColor(.textPrimary)
+                            TextField("例如：写作、工作", text: $tagName)
+                                .accessibilityIdentifier("tag.name")
+                                .accessibilityLabel("标签名称")
+                                .appInput()
+                        }
+                        .appCard()
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("选择颜色")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("选择颜色")
+                                .font(AppTypography.section)
+                                .foregroundColor(.textPrimary)
 
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
-                            ForEach(predefinedColors, id: \.self) { color in
-                                Button {
-                                    selectedColor = color
-                                } label: {
-                                    Circle()
-                                        .fill(Color(hex: color))
-                                        .frame(width: 50, height: 50)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.white, lineWidth: selectedColor == color ? 3 : 0)
-                                        )
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                                ForEach(predefinedColors, id: \.self) { color in
+                                    Button {
+                                        selectedColor = color
+                                    } label: {
+                                        Circle()
+                                            .fill(Color(hex: color))
+                                            .frame(width: 50, height: 50)
+                                            .overlay {
+                                                if selectedColor == color {
+                                                    Image(systemName: "checkmark")
+                                                        .font(AppTypography.section)
+                                                        .foregroundColor(.black)
+                                                }
+                                            }
+                                            .overlay(Circle().strokeBorder(Color.white.opacity(0.8), lineWidth: selectedColor == color ? 2 : 0))
+                                    }
+                                    .accessibilityLabel("标签颜色 \(color)")
+                                    .accessibilityAddTraits(selectedColor == color ? .isSelected : [])
                                 }
-                                .accessibilityLabel("标签颜色 \(color)")
-                                .accessibilityAddTraits(selectedColor == color ? .isSelected : [])
                             }
                         }
-                    }
 
-                    if let saveError = saveError {
-                        Text(saveError)
-                            .foregroundColor(.red)
-                            .font(.callout)
-                            .accessibilityIdentifier("tag.error")
-                    }
-
-                    Spacer()
-
-                    Button {
-                        Task {
-                            await createTag()
+                        if let saveError = saveError {
+                            Text(saveError)
+                                .foregroundColor(.red)
+                                .font(.callout)
+                                .accessibilityIdentifier("tag.error")
                         }
-                    } label: {
-                        Text(isSaving ? "保存中…" : "创建标签")
-                            .font(.headline)
-                            .foregroundColor(trimmedName.isEmpty ? .textSecondary : .surface1)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(trimmedName.isEmpty ? Color.surface4 : Color.accent)
-                            .cornerRadius(999)
+
+                        Spacer()
+
+                        Button {
+                            Task {
+                                await createTag()
+                            }
+                        } label: {
+                            Text(isSaving ? "保存中…" : "创建标签")
+                        }
+                        .buttonStyle(AppPrimaryButtonStyle())
+                        .accessibilityIdentifier("tag.save")
+                        .disabled(trimmedName.isEmpty || isSaving)
                     }
-                    .accessibilityIdentifier("tag.save")
-                    .disabled(trimmedName.isEmpty || isSaving)
+                    .padding(AppSpacing.page)
                 }
-                .padding()
             }
             .navigationTitle("新建标签")
             .navigationBarTitleDisplayMode(.inline)

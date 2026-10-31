@@ -1,5 +1,5 @@
 {
-  "name": "PromptKit",
+  "name": "PromptMaster",
   "version": "1.0.0",
   "description": "iOS app for Prompt management",
   "platform": "iOS 16.0+",
@@ -9,7 +9,10 @@
     "engine": "SQLite3",
     "path": "Application Support/PromptKit/PromptKit.sqlite",
     "offline": true,
-    "schema_version": 1
+    "schema_version": 2,
+    "bundled_import": "Resources/WebPrompts.sqlite",
+    "import_source": "prompt_shortcut_tools",
+    "tag_filter": "any_selected"
   },
   "features": [
     "Prompt notes and templates",
@@ -23,13 +26,20 @@
   "design": {
     "theme": "dark",
     "colors": {
-      "surface1": "#05070C",
-      "surface2": "#0A0D12",
-      "surface3": "#0F131C",
-      "surface4": "#161D2B",
-      "surface5": "#1E2636",
-      "accent": "#38BDF8",
-      "accentMuted": "#6EE7B7"
+      "surface1": "#101216",
+      "surface2": "#14171C",
+      "surface3": "#1B1F26",
+      "surface4": "#252B34",
+      "surface5": "#343D49",
+      "accent": "#78C4ED",
+      "accentMuted": "#99D5F3"
+    },
+    "typography": "iOS system semantic fonts with Dynamic Type; default design",
+    "layout": {
+      "page_inset": 20,
+      "section_spacing": 24,
+      "card_padding": 16,
+      "card_radius": 14
     }
   },
   "architecture": {

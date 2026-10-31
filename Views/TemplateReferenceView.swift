@@ -36,7 +36,7 @@ struct TemplateReferenceView: View {
     ]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.surface1.ignoresSafeArea()
 
@@ -48,25 +48,25 @@ struct TemplateReferenceView: View {
                             } label: {
                                 HStack(alignment: .top, spacing: 12) {
                                     Text("\(index + 1)")
-                                        .font(.caption)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.white)
+                                        .font(AppTypography.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.surface1)
                                         .frame(width: 28, height: 28)
                                         .background(Color.accent)
                                         .clipShape(Circle())
 
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text(template.title)
-                                            .font(.headline)
+                                            .font(AppTypography.section)
                                             .foregroundColor(.accent)
 
                                         Text(template.description ?? "")
-                                            .font(.caption)
+                                            .font(AppTypography.caption)
                                             .foregroundColor(.textSecondary)
 
                                         Text(template.promptText)
-                                            .font(.caption)
-                                            .foregroundColor(.textTertiary)
+                                            .font(AppTypography.caption)
+                                            .foregroundColor(.textSecondary)
                                             .lineLimit(2)
                                             .padding(.top, 4)
                                     }
@@ -76,13 +76,12 @@ struct TemplateReferenceView: View {
                                     Image(systemName: "chevron.right")
                                         .foregroundColor(.accent)
                                 }
-                                .padding()
-                                .background(Color.surface3)
-                                .cornerRadius(12)
+                                .appCard()
                             }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .padding()
+                    .padding(AppSpacing.page)
                 }
             }
             .navigationTitle("预设模板")
