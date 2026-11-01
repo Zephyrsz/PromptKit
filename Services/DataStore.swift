@@ -51,7 +51,7 @@ class DataStore: ObservableObject {
     }
 
     func toggleFavorite(prompt: Prompt) async {
-        guard let currenft = prompts.first(where: { $0.id == prompt.id }) else { return }
+        guard let current = prompts.first(where: { $0.id == prompt.id }) else { return }
         _ = perform { try $0.setFavorite(id: current.id, isFavorite: !current.isFavorite) }
     }
 

@@ -14,9 +14,11 @@ struct EditPromptView: View {
     @State private var showingTemplateList = false
     @State private var isSaving = false
     @State private var saveError: String?
+    @State private var showingDiscardConfirmation = false
 
     init(prompt: Prompt?, initialKind: PromptKind = .note) {
         self.prompt = prompt
+        self.initialKind = initialKind
         _kind = State(initialValue: prompt?.kind ?? initialKind)
         _title = State(initialValue: prompt?.title ?? "")
         _promptText = State(initialValue: prompt?.promptText ?? "")
@@ -29,6 +31,15 @@ struct EditPromptView: View {
         !promptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         (kind == .note || !variables.isEmpty)
     }
+
+    private var hasUnsavedChanges: Bool {
+        kind != (prompt?.kind ?? initialKind) ||
+        title != (prompt?.title ?? "") ||
+        promptText != (prompt?.promptText ?? "") ||
+        selectedTags != Set(prompt?.tags ?? [])
+    }
+
+    private let initialKind: PromptKind
 
     var body: some View {
         NavigationStack {
@@ -45,9 +56,7 @@ struct EditPromptView: View {
                         .accessibilityIdentifier("prompt.kind")
 
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("标题")
-                                .font(AppTypography.section)
-                                .foregroundColor(.textPrimary)
+                            AppSectionHeader(title: "标题")
                             TextField(kind == .note ? "为笔记起个名字" : "为模板起个名字", text: $title)
                                 .accessibilityIdentifier("prompt.title")
                                 .accessibilityLabel("标题")
@@ -56,9 +65,7 @@ struct EditPromptView: View {
                         .appCard()
 
                         VStack(alignment: .leading, spacing: 12) {
-                            Text(kind == .note ? "提示词内容" : "模板内容")
-                                .font(AppTypography.section)
-                                .foregroundColor(.textPrimary)
+                            AppSectionHeader(title: kind == .note ? "提示词内容" : "模板内容")
 
                             TextEditor(text: $promptText)
                                 .accessibilityIdentifier("prompt.body")
@@ -68,10 +75,8 @@ struct EditPromptView: View {
                                 .scrollContentBackground(.hidden)
                                 .foregroundColor(.textPrimary)
                                 .frame(minHeight: 220)
-                                .padding(8)
-                                .background(Color.surface2)
-                                .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.outline))
+                                .padding(AppSpacing.small)
+                                .appInputSurface()
 
                             if kind == .template {
                                 Button {
@@ -115,22 +120,19 @@ struct EditPromptView: View {
                             .accessibilityIdentifier("prompt.tags")
 
                             if !selectedTags.isEmpty {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack {
-                                        ForEach(selectedTags.sorted(), id: \.self) { name in
-                                            Button {
-                                                selectedTags.remove(name)
-                                            } label: {
-                                                Label(name, systemImage: "xmark.circle")
-                                                    .font(AppTypography.caption)
-                                                    .padding(.horizontal, 10)
-                                                    .frame(minHeight: 44)
-                                                    .background(Color.surface4)
-                                                    .cornerRadius(8)
-                                            }
-                                            .foregroundColor(.textPrimary)
-                                            .accessibilityLabel("移除标签 \(name)")
+                                TagFlowLayout(spacing: AppSpacing.small) {
+                                    ForEach(selectedTags.sorted(), id: \.self) { name in
+                                        Button {
+                                            selectedTags.remove(name)
+                                        } label: {
+                                            AppTagChip(name: name,
+                                                       color: dataStore.tags.first { $0.name == name }?.swiftUIColor ?? .accent,
+                                                       removable: true)
+                                                .frame(minHeight: AppMetrics.touchTarget)
+                                                .contentShape(Rectangle())
                                         }
+                                        .buttonStyle(AppPressFeedbackStyle())
+                                        .accessibilityLabel("移除标签 \(name)")
                                     }
                                 }
                             }
@@ -159,11 +161,14 @@ struct EditPromptView: View {
             .navigationTitle("\(prompt == nil ? "新建" : "编辑")\(kind.title)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") {
+                        if hasUnsavedChanges { showingDiscardConfirmation = true }
+                        else { dismiss() }
+                    }
                         .disabled(isSaving)
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button(isSaving ? "保存中…" : "保存") {
                         Task { await savePrompt() }
                     }
@@ -172,6 +177,7 @@ struct EditPromptView: View {
                     .disabled(!isValid || isSaving)
                 }
             }
+            .appScreen()
             .sheet(isPresented: $showingTagPicker) {
                 TagPickerView(selectedTags: $selectedTags)
             }
@@ -188,8 +194,12 @@ struct EditPromptView: View {
             .alert("保存失败", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
                 Button("好的", role: .cancel) { saveError = nil }
             } message: { Text(saveError ?? "") }
+            .alert("放弃未保存的更改？", isPresented: $showingDiscardConfirmation) {
+                Button("继续编辑", role: .cancel) {}
+                Button("放弃更改", role: .destructive) { dismiss() }
+            } message: { Text("尚未保存的内容将丢失。") }
         }
-        .interactiveDismissDisabled(isSaving)
+        .interactiveDismissDisabled(isSaving || hasUnsavedChanges)
     }
 
     private func savePrompt() async {

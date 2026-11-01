@@ -41,27 +41,24 @@ struct TemplateReferenceView: View {
                 Color.surface1.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(Array(presetTemplates.enumerated()), id: \.element.id) { index, template in
+                    VStack(alignment: .leading, spacing: AppSpacing.gap) {
+                        AppSectionHeader(title: "从示例开始", detail: "选择示例后可继续编辑内容和填空项。")
+                            .padding(.bottom, AppSpacing.small)
+                        ForEach(presetTemplates) { template in
                             Button {
                                 onSelectTemplate(template)
                             } label: {
                                 HStack(alignment: .top, spacing: 12) {
-                                    Text("\(index + 1)")
-                                        .font(AppTypography.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.surface1)
-                                        .frame(width: 28, height: 28)
-                                        .background(Color.accent)
-                                        .clipShape(Circle())
+                                    AppIconTile(symbol: template.kind.icon)
 
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text(template.title)
                                             .font(AppTypography.section)
-                                            .foregroundColor(.accent)
+                                            .foregroundColor(.textPrimary)
+                                            .fixedSize(horizontal: false, vertical: true)
 
                                         Text(template.description ?? "")
-                                            .font(AppTypography.caption)
+                                            .font(AppTypography.secondary)
                                             .foregroundColor(.textSecondary)
 
                                         Text(template.promptText)
@@ -74,26 +71,27 @@ struct TemplateReferenceView: View {
                                     Spacer()
 
                                     Image(systemName: "chevron.right")
-                                        .foregroundColor(.accent)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.textTertiary)
+                                        .accessibilityHidden(true)
                                 }
                                 .appCard()
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(AppPressFeedbackStyle())
+                            .accessibilityHint("使用此示例填入编辑器")
                         }
                     }
                     .padding(AppSpacing.page)
                 }
             }
-            .navigationTitle("预设模板")
+            .navigationTitle("预设模板参考")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                    .foregroundColor(.textSecondary)
+                ToolbarItem(placement: .cancellationAction) {
+                    AppCloseButton(label: "关闭预设模板参考") { dismiss() }
                 }
             }
+            .appScreen()
         }
     }
 }

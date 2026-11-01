@@ -21,30 +21,30 @@ struct VariableInputView: View {
                 ScrollView {
                     VStack(spacing: AppSpacing.section) {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("变量名称")
-                                .font(AppTypography.section)
-                                .foregroundColor(.textPrimary)
+                            AppSectionHeader(title: "填空项名称")
 
-                            TextField("例如: 主题、产品名称", text: $varName)
-                                .accessibilityLabel("变量名称")
+                            TextField("例如：主题、产品名称", text: $varName)
+                                .accessibilityLabel("填空项名称")
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
                                 .appInput()
 
-                            Text("将在模板中插入 ${\(trimmedName.isEmpty ? "变量名" : trimmedName)}")
+                            Text("将在模板末尾插入 ${\(trimmedName.isEmpty ? "填空项名称" : trimmedName)}")
                                 .font(AppTypography.caption)
                                 .foregroundColor(.textSecondary)
                         }
+                        .appCard()
 
                         if !templateVars.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("已有变量")
-                                    .font(AppTypography.section)
-                                    .foregroundColor(.textPrimary)
+                                AppSectionHeader(title: "已有填空项", detail: "移除填空项会保留名称作为普通文字。")
 
                                 ForEach(templateVars, id: \.self) { varName in
                                     HStack {
                                         Text(varName)
-                                            .font(.body)
-                                            .foregroundColor(.accent)
+                                            .font(AppTypography.body)
+                                            .foregroundColor(.textPrimary)
+                                            .fixedSize(horizontal: false, vertical: true)
 
                                         Spacer()
 
@@ -52,24 +52,25 @@ struct VariableInputView: View {
                                             promptText = TemplateText.render(promptText, values: [varName: varName])
                                         } label: {
                                             Image(systemName: "xmark.circle.fill")
+                                                .font(.system(size: 18, weight: .medium))
                                                 .foregroundColor(.textTertiary)
                                                 .frame(width: 44, height: 44)
                                         }
+                                        .buttonStyle(AppPressFeedbackStyle())
                                         .accessibilityLabel("移除填空项 \(varName)")
                                     }
-                                    .padding(AppSpacing.page)
-                                    .background(Color.surface3)
-                                    .cornerRadius(8)
+                                    if varName != templateVars.last {
+                                        Divider().overlay(Color.outline)
+                                    }
                                 }
                             }
+                            .appCard()
                         }
-
-                        Spacer()
 
                         Button {
                             addVariable()
                         } label: {
-                            Text("插入变量")
+                            Label("插入填空项", systemImage: "plus.circle")
                         }
                         .buttonStyle(AppPrimaryButtonStyle())
                         .disabled(!isValid)
@@ -77,16 +78,14 @@ struct VariableInputView: View {
                     .padding(AppSpacing.page)
                 }
             }
-            .navigationTitle("添加替换项")
+            .navigationTitle("插入填空项")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("完成") {
-                        dismiss()
-                    }
-                    .foregroundColor(.accent)
+                ToolbarItem(placement: .cancellationAction) {
+                    AppCloseButton(label: "关闭填空项") { dismiss() }
                 }
             }
+            .appScreen()
         }
     }
 

@@ -29,11 +29,11 @@ struct QuickUsePromptView: View {
             .navigationTitle("快速使用")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button { dismiss() } label: { Image(systemName: "xmark") }
-                        .accessibilityLabel("关闭快速使用")
+                ToolbarItem(placement: .cancellationAction) {
+                    AppCloseButton(label: "关闭快速使用") { dismiss() }
                 }
             }
+            .appScreen()
         }
     }
 }

@@ -1,6 +1,70 @@
 import XCTest
 
 final class PromptKitUITests: XCTestCase {
+    func testSettingsShowAccurateAvailabilityAndConsistentRows() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons["navigation.2"].tap()
+        XCTAssertFalse(app.staticTexts["高级版已激活・年度"].exists)
+        XCTAssertFalse(app.switches["iCloud 同步"].exists)
+        XCTAssertTrue(app.staticTexts["仅保存在此 iPhone"].exists)
+        XCTAssertFalse(app.buttons["settings.export"].isEnabled)
+        XCTAssertTrue(app.buttons["settings.tags"].isHittable)
+        capture(app, name: "Consistent settings and truthful availability")
+        app.buttons["settings.tags"].tap()
+        XCTAssertTrue(app.buttons["tag.add"].waitForExistence(timeout: 5))
+        app.buttons["tag.add"].tap()
+        XCTAssertTrue(app.buttons["tag.color.蓝色"].exists)
+        XCTAssertTrue(app.buttons["tag.color.蓝色"].isSelected)
+        app.buttons["tag.color.紫色"].tap()
+        XCTAssertTrue(app.buttons["tag.color.紫色"].isSelected)
+        capture(app, name: "Shared tag editor with named color selection")
+    }
+
+    func testEditorCancelProtectsUnsavedChanges() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons["prompt.add"].tap()
+        app.buttons.matching(identifier: "prompt.create.note").firstMatch.tap()
+        let field = app.textFields["prompt.title"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("未保存的草稿")
+        app.buttons["取消"].tap()
+        let confirmation = app.alerts["放弃未保存的更改？"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        confirmation.buttons["继续编辑"].tap()
+        XCTAssertEqual(field.value as? String, "未保存的草稿")
+        app.buttons["取消"].tap()
+        confirmation.buttons["放弃更改"].tap()
+        XCTAssertTrue(app.buttons["prompt.add"].waitForExistence(timeout: 5))
+    }
+
+    func testSettingsAndFillInItemAtLargestTextSize() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+        app.buttons["navigation.2"].tap()
+        let tags = app.buttons["settings.tags"]
+        for _ in 0..<5 where !tags.isHittable { app.swipeUp() }
+        XCTAssertTrue(tags.isHittable)
+        XCTAssertGreaterThanOrEqual(tags.frame.height, 44)
+        XCTAssertLessThanOrEqual(tags.frame.maxX, app.frame.width)
+        capture(app, name: "Settings at largest accessibility text")
+        app.buttons["prompt.add"].tap()
+        app.buttons.matching(identifier: "prompt.create.template").firstMatch.tap()
+        let insert = app.buttons["variable.add"]
+        for _ in 0..<6 where !insert.isHittable { app.swipeUp() }
+        XCTAssertTrue(insert.isHittable)
+        insert.tap()
+        XCTAssertTrue(app.navigationBars["插入填空项"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["填空项名称"].exists)
+        capture(app, name: "Consistent fill-in item sheet at largest text")
+    }
+
     func testTagFiltersRemainUsableWithLargestText() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -105,13 +169,17 @@ final class PromptKitUITests: XCTestCase {
         app.swipeUp()
         XCTAssertTrue(app.buttons["prompt.copy"].isHittable)
         XCUIDevice.shared.orientation = .landscapeLeft
+        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.frame.width > app.frame.height
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 5), .completed)
         app.swipeUp()
         XCTAssertTrue(app.buttons["prompt.copy"].exists)
         capture(app, name: "06 Landscape largest text")
     }
 
     private func capture(_ app: XCUIApplication, name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
@@ -166,6 +234,9 @@ final class PromptKitUITests: XCTestCase {
         XCTAssertEqual(search.value as? String, query)
         XCTAssertTrue(app.staticTexts["没有匹配的内容"].exists)
         capture(app, name: "PromptMaster empty search and final navigation order")
+        app.buttons["library.filters.reset"].tap()
+        XCTAssertNotEqual(search.value as? String, query)
+        XCTAssertFalse(app.staticTexts["没有匹配的内容"].exists)
     }
 
     func testTagCreationPersistsAfterRelaunch() {

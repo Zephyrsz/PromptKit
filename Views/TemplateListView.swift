@@ -41,7 +41,7 @@ struct PromptCardView: View {
                     Task { await dataStore.toggleFavorite(prompt: prompt) }
                 } label: {
                     Image(systemName: prompt.isFavorite ? "star.fill" : "star")
-                        .font(AppTypography.body)
+                        .font(.system(size: 18, weight: .medium))
                         .foregroundColor(prompt.isFavorite ? .accent : .textTertiary)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
@@ -52,18 +52,18 @@ struct PromptCardView: View {
             }
 
             if !prompt.tags.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(prompt.tags, id: \.self) { name in
-                            AppTagChip(name: name, color: dataStore.tags.first { $0.name == name }?.swiftUIColor ?? .accent)
-                        }
+                TagFlowLayout(spacing: AppSpacing.small) {
+                    ForEach(prompt.tags, id: \.self) { name in
+                        AppTagChip(name: name, color: dataStore.tags.first { $0.name == name }?.swiftUIColor ?? .accent)
                     }
                 }
             }
 
-            HStack(alignment: .firstTextBaseline) {
+            (dynamicTypeSize.isAccessibilitySize
+             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+             : AnyLayout(HStackLayout(alignment: .firstTextBaseline))) {
                 Label(prompt.kind.title, systemImage: prompt.kind.icon)
-                Spacer(minLength: 8)
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 Text(prompt.updatedAt, style: .date)
                     .monospacedDigit()
             }

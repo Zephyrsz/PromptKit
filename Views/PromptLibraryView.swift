@@ -8,6 +8,7 @@ struct PromptLibraryView: View {
     @State private var selectedKind: PromptKind?
     @State private var selectedPrompt: Prompt?
     @State private var tagsExpanded = true
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var filter: PromptLibraryFilter {
         PromptLibraryFilter(kind: selectedKind, selectedTags: selectedTags, query: searchText, favoritesOnly: favoritesOnly)
@@ -40,16 +41,26 @@ struct PromptLibraryView: View {
                         tagFilters
 
                         if let message = dataStore.importErrorMessage ?? dataStore.errorMessage {
-                            Text(message).font(AppTypography.secondary).foregroundColor(.red)
+                            AppStatusMessage(message: message)
                         }
 
                         if dataStore.isLoading {
                             ProgressView().tint(.accent).frame(maxWidth: .infinity)
                         } else if results.isEmpty {
-                            AppEmptyState(symbol: favoritesOnly ? "star" : "line.3.horizontal.decrease.circle",
-                                          title: emptyTitle, message: "试试其他关键词、标签或内容分类。")
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, AppSpacing.section)
+                            VStack(spacing: AppSpacing.gap) {
+                                AppEmptyState(symbol: favoritesOnly ? "star" : "line.3.horizontal.decrease.circle",
+                                              title: emptyTitle, message: emptyMessage)
+                                if hasActiveFilters {
+                                    Button("重置全部筛选") {
+                                        searchText = ""
+                                        selectedTags.removeAll()
+                                        selectedKind = nil
+                                    }
+                                    .buttonStyle(AppSecondaryButtonStyle())
+                                    .accessibilityIdentifier("library.filters.reset")
+                                }
+                            }
+                            .appCard()
                         } else {
                             if selectedKind != .template { promptSection(.note, title: "笔记", identifier: "notes") }
                             if selectedKind != .note { promptSection(.template, title: "模板", identifier: "templates") }
@@ -62,13 +73,12 @@ struct PromptLibraryView: View {
                 .scrollDismissesKeyboard(.interactively)
             }
             .background(Color.surface1.ignoresSafeArea())
-            .navigationTitle("")
+            .navigationTitle(favoritesOnly ? "个人收藏" : "")
             .navigationBarTitleDisplayMode(.inline)
+            .appScreen()
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    if favoritesOnly {
-                        Text("个人收藏").font(AppTypography.title).foregroundColor(.textPrimary)
-                    } else {
+                if !favoritesOnly {
+                    ToolbarItem(placement: .principal) {
                         AppWordmark()
                     }
                 }
@@ -89,9 +99,23 @@ struct PromptLibraryView: View {
         return favoritesOnly ? "暂无收藏的笔记或模板" : "暂无\(selectedKind?.title ?? "笔记或模板")"
     }
 
+    private var hasActiveFilters: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        !selectedTags.isEmpty || selectedKind != nil
+    }
+
+    private var emptyMessage: String {
+        if hasActiveFilters { return "试试其他关键词、标签或内容分类，或重置全部筛选。" }
+        return favoritesOnly
+            ? "点击笔记或模板旁的星标，把常用内容收藏到这里。"
+            : "点击底部加号，创建第一条笔记或模板。"
+    }
+
     private var tagFilters: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 12) {
+            (dynamicTypeSize.isAccessibilitySize
+             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+             : AnyLayout(HStackLayout(spacing: AppSpacing.gap))) {
                 Button {
                     tagsExpanded.toggle()
                 } label: {
@@ -111,16 +135,18 @@ struct PromptLibraryView: View {
                 .accessibilityValue(tagsExpanded ? "已展开" : "已收起")
                 .accessibilityHint("展开或收起标签筛选")
 
-                Spacer(minLength: 8)
-                Text("\(results.count) 条内容")
-                    .font(AppTypography.caption)
-                    .foregroundColor(.textSecondary)
-                    .accessibilityIdentifier("library.results.count")
-                if !selectedTags.isEmpty {
-                    Button("清除筛选") { selectedTags.removeAll() }
-                        .font(AppTypography.secondary)
-                        .frame(minHeight: 44)
-                        .accessibilityIdentifier("library.tags.clear")
+                if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
+                HStack(spacing: AppSpacing.gap) {
+                    Text("\(results.count) 条内容")
+                        .font(AppTypography.caption)
+                        .foregroundColor(.textSecondary)
+                        .accessibilityIdentifier("library.results.count")
+                    if !selectedTags.isEmpty {
+                        Button("清除筛选") { selectedTags.removeAll() }
+                            .font(AppTypography.secondary)
+                            .frame(minHeight: AppMetrics.touchTarget)
+                            .accessibilityIdentifier("library.tags.clear")
+                    }
                 }
             }
             if tagsExpanded {
@@ -148,7 +174,7 @@ struct PromptLibraryView: View {
             if selected { selectedTags.remove(tag.name) } else { selectedTags.insert(tag.name) }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: selected ? "checkmark.square.fill" : "square")
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(selected ? .accent : .textSecondary)
                     .accessibilityHidden(true)
                 Text(tag.name).fixedSize(horizontal: false, vertical: true)
@@ -160,11 +186,11 @@ struct PromptLibraryView: View {
             .padding(.vertical, 8)
             .frame(minHeight: 44)
             .background(selected ? Color.accent.opacity(0.14) : Color.surface3,
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        in: RoundedRectangle(cornerRadius: AppRadius.chip, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.chip, style: .continuous)
                 .strokeBorder(selected ? Color.accent : Color.outline))
         }
-        .buttonStyle(LibraryTagButtonStyle())
+        .buttonStyle(AppPressFeedbackStyle())
         .accessibilityIdentifier("library.tag.\(tag.name)")
         .accessibilityLabel(tag.name)
         .accessibilityValue("\(count) 条内容")
@@ -192,12 +218,6 @@ struct PromptLibraryView: View {
                     .accessibilityIdentifier("library.\(identifier).count")
             }
         }
-    }
-}
-
-private struct LibraryTagButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label.opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 

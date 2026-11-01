@@ -51,6 +51,7 @@ extension Color {
     static let textPrimary = Color(hex: "F1F3F5")
     static let textSecondary = Color(hex: "B3BDC9")
     static let textTertiary = Color(hex: "9AA6B5")
+    static let appError = Color(hex: "FF9B9B")
 }
 
 // Semantic system fonts retain native Chinese fallback and Dynamic Type support.
@@ -81,6 +82,7 @@ struct AppWordmark: View {
 }
 
 enum AppSpacing {
+    static let small: CGFloat = 8
     static let page: CGFloat = 20
     static let section: CGFloat = 24
     static let card: CGFloat = 16
@@ -88,11 +90,27 @@ enum AppSpacing {
     static let radius: CGFloat = 14
 }
 
+enum AppRadius {
+    static let chip: CGFloat = 8
+    static let control: CGFloat = 12
+    static let card: CGFloat = AppSpacing.radius
+}
+
+enum AppMetrics {
+    static let touchTarget: CGFloat = 44
+    static let controlHeight: CGFloat = 50
+}
+
 extension View {
     func appCard() -> some View {
         self.padding(AppSpacing.card)
-            .background(Color.surface3, in: RoundedRectangle(cornerRadius: AppSpacing.radius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: AppSpacing.radius, style: .continuous).strokeBorder(Color.outline.opacity(0.65)))
+            .background(Color.surface3, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous).strokeBorder(Color.outline.opacity(0.65)))
+    }
+
+    func appInputSurface() -> some View {
+        self.background(Color.surface2, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous).strokeBorder(Color.outline))
     }
 
     func appInput() -> some View {
@@ -100,8 +118,26 @@ extension View {
             .foregroundColor(.textPrimary)
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(Color.surface2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.outline))
+            .frame(minHeight: AppMetrics.controlHeight)
+            .appInputSurface()
+    }
+
+    func appScreen() -> some View {
+        self.font(AppTypography.body)
+            .foregroundColor(.textPrimary)
+            .tint(.accent)
+            .background(Color.surface1.ignoresSafeArea())
+            .toolbarBackground(Color.surface1, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .preferredColorScheme(.dark)
+    }
+
+    func appGroupedList() -> some View {
+        self.listStyle(.insetGrouped)
+            .environment(\.defaultMinListRowHeight, 56)
+            .listRowSeparatorTint(Color.outline.opacity(0.65))
+            .scrollContentBackground(.hidden)
     }
 }
 
@@ -112,10 +148,92 @@ struct AppPrimaryButtonStyle: ButtonStyle {
         configuration.label
             .font(AppTypography.section)
             .foregroundColor(isEnabled ? .surface1 : .textTertiary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, minHeight: 24)
             .padding(14)
-            .background(isEnabled ? Color.accent : Color.surface4, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(isEnabled ? Color.accent : Color.surface4, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
             .opacity(configuration.isPressed ? 0.75 : 1)
+    }
+}
+
+struct AppSecondaryButtonStyle: ButtonStyle {
+    var isDestructive = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(AppTypography.secondary.weight(.semibold))
+            .foregroundColor(isDestructive ? .appError : .accent)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, minHeight: 24)
+            .padding(12)
+            .background(isDestructive ? Color.appError.opacity(0.08) : Color.surface4,
+                        in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous)
+                .strokeBorder(isDestructive ? Color.appError.opacity(0.3) : Color.outline))
+            .opacity(!isEnabled ? 0.5 : configuration.isPressed ? 0.75 : 1)
+    }
+}
+
+struct AppPressFeedbackStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}
+
+struct AppCloseButton: View {
+    let label: String
+    var identifier = ""
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 16, weight: .semibold))
+                .frame(minWidth: AppMetrics.touchTarget, minHeight: AppMetrics.touchTarget)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+struct AppSectionHeader: View {
+    let title: String
+    var detail: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(AppTypography.section)
+                .foregroundColor(.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            if let detail {
+                Text(detail)
+                    .font(AppTypography.caption)
+                    .foregroundColor(.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+struct AppStatusMessage: View {
+    let message: String
+    var isError = true
+
+    var body: some View {
+        Label(message, systemImage: isError ? "exclamationmark.circle" : "info.circle")
+            .font(AppTypography.secondary)
+            .foregroundColor(isError ? .appError : .textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(AppSpacing.gap)
+            .background(isError ? Color.appError.opacity(0.08) : Color.surface2,
+                        in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+            .accessibilityElement(children: .combine)
     }
 }
 
@@ -130,7 +248,7 @@ struct AppSearchField: View {
                 .font(.system(size: 17, weight: .regular))
                 .foregroundColor(.textTertiary)
                 .accessibilityHidden(true)
-            TextField(placeholder, text: $text)
+            TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundColor(.textTertiary))
                 .focused($isFocused)
                 .accessibilityLabel(placeholder)
                 .submitLabel(.search)
@@ -148,9 +266,10 @@ struct AppSearchField: View {
         .foregroundColor(.textPrimary)
         .padding(.leading, 14)
         .padding(.trailing, text.isEmpty ? 14 : 0)
-        .frame(minHeight: 50)
-        .background(Color.surface3, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.outline))
+        .padding(.vertical, 4)
+        .frame(minHeight: AppMetrics.controlHeight)
+        .background(Color.surface3, in: RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: AppRadius.control, style: .continuous).strokeBorder(Color.outline))
     }
 }
 
@@ -159,7 +278,7 @@ struct AppIconTile: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(.body, design: .default).weight(.medium))
+            .font(.system(size: 18, weight: .medium))
             .foregroundColor(.accent)
             .frame(width: 40, height: 40)
             .background(Color.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -170,17 +289,23 @@ struct AppIconTile: View {
 struct AppTagChip: View {
     let name: String
     var color: Color = .accent
+    var removable = false
 
     var body: some View {
         HStack(spacing: 6) {
             Circle().fill(color).frame(width: 5, height: 5).accessibilityHidden(true)
             Text(name).fixedSize(horizontal: false, vertical: true)
+            if removable {
+                Image(systemName: "xmark")
+                    .font(AppTypography.caption.weight(.semibold))
+                    .accessibilityHidden(true)
+            }
         }
         .font(AppTypography.caption)
         .foregroundColor(.textSecondary)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color.surface4, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .background(Color.surface4, in: RoundedRectangle(cornerRadius: AppRadius.chip, style: .continuous))
     }
 }
 
@@ -197,10 +322,37 @@ struct AppEmptyState: View {
                 .padding(.bottom, 8)
                 .accessibilityHidden(true)
             Text(title).font(AppTypography.section).foregroundColor(.textPrimary)
+                .accessibilityAddTraits(.isHeader)
             Text(message).font(AppTypography.secondary).foregroundColor(.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
         .padding(AppSpacing.section)
+    }
+}
+
+struct AppComponents_Previews: PreviewProvider {
+    static var previews: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpacing.section) {
+                AppSectionHeader(title: "统一的界面组件", detail: "石墨灰表面 · 蓝色操作 · 原生动态字号")
+                VStack(alignment: .leading, spacing: AppSpacing.gap) {
+                    TextField("输入内容", text: .constant("")).appInput()
+                    TagFlowLayout {
+                        AppTagChip(name: "工作")
+                        AppTagChip(name: "写作", removable: true)
+                    }
+                    Button("生成并复制") {}.buttonStyle(AppPrimaryButtonStyle())
+                    Button("编辑") {}.buttonStyle(AppSecondaryButtonStyle())
+                }
+                .appCard()
+                AppStatusMessage(message: "未能保存，请重试。")
+                AppEmptyState(symbol: "star", title: "暂无收藏", message: "收藏常用的笔记或模板，方便下次找到。")
+            }
+            .padding(AppSpacing.page)
+        }
+        .appScreen()
+        .previewDisplayName("共享组件")
     }
 }

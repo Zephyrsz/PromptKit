@@ -7,6 +7,7 @@ struct PromptDetailView: View {
     @State private var showingEditSheet = false
     @State private var showingDeleteAlert = false
     @State private var actionError: String?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(prompt: Prompt) { initialPrompt = prompt }
 
@@ -35,11 +36,9 @@ struct PromptDetailView: View {
                         }
 
                         if !prompt.tags.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack {
-                                    ForEach(prompt.tags, id: \.self) { name in
-                                        AppTagChip(name: name, color: dataStore.tags.first { $0.name == name }?.swiftUIColor ?? .accent)
-                                    }
+                            TagFlowLayout(spacing: AppSpacing.small) {
+                                ForEach(prompt.tags, id: \.self) { name in
+                                    AppTagChip(name: name, color: dataStore.tags.first { $0.name == name }?.swiftUIColor ?? .accent)
                                 }
                             }
                             .foregroundColor(.textPrimary)
@@ -49,7 +48,7 @@ struct PromptDetailView: View {
 
                         if let notes = prompt.usageNotes, !notes.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("使用说明").font(AppTypography.section)
+                                AppSectionHeader(title: "使用说明")
                                 Text(notes).foregroundColor(.textSecondary)
                                     .font(AppTypography.body)
                                     .lineSpacing(5)
@@ -59,23 +58,23 @@ struct PromptDetailView: View {
                             .appCard()
                         }
 
-                        HStack(spacing: 20) {
+                        (dynamicTypeSize.isAccessibilitySize
+                         ? AnyLayout(VStackLayout(spacing: AppSpacing.gap))
+                         : AnyLayout(HStackLayout(spacing: AppSpacing.gap))) {
                             Button { showingEditSheet = true } label: {
                                 Label("编辑", systemImage: "pencil")
                             }
                             .accessibilityIdentifier("prompt.edit")
-                            .buttonStyle(.bordered)
-                            Spacer()
+                            .buttonStyle(AppSecondaryButtonStyle())
                             Button(role: .destructive) { showingDeleteAlert = true } label: {
                                 Label("删除", systemImage: "trash")
                             }
                             .accessibilityIdentifier("prompt.delete")
-                            .buttonStyle(.bordered)
+                            .buttonStyle(AppSecondaryButtonStyle(isDestructive: true))
                         }
-                        .controlSize(.large)
 
                         if let actionError = actionError {
-                            Text(actionError).font(.callout).foregroundColor(.red)
+                            AppStatusMessage(message: actionError)
                         }
                     }
                     .padding(AppSpacing.page)
@@ -85,10 +84,8 @@ struct PromptDetailView: View {
             .navigationTitle(prompt.kind.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button { dismiss() } label: { Image(systemName: "xmark") }
-                        .accessibilityIdentifier("prompt.close")
-                        .accessibilityLabel("关闭详情")
+                ToolbarItem(placement: .cancellationAction) {
+                    AppCloseButton(label: "关闭详情", identifier: "prompt.close") { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -98,12 +95,16 @@ struct PromptDetailView: View {
                         }
                     } label: {
                         Image(systemName: prompt.isFavorite ? "star.fill" : "star")
+                            .font(.system(size: 18, weight: .medium))
                             .foregroundColor(prompt.isFavorite ? .accent : .textSecondary)
+                            .frame(minWidth: AppMetrics.touchTarget, minHeight: AppMetrics.touchTarget)
                     }
                     .accessibilityIdentifier("prompt.favorite")
                     .accessibilityLabel(prompt.isFavorite ? "取消收藏" : "收藏")
+                    .accessibilityValue(prompt.isFavorite ? "已收藏" : "未收藏")
                 }
             }
+            .appScreen()
             .sheet(isPresented: $showingEditSheet) { EditPromptView(prompt: prompt) }
             .alert("删除\(prompt.kind.title)", isPresented: $showingDeleteAlert) {
                 Button("取消", role: .cancel) {}
@@ -130,7 +131,7 @@ struct PromptUsageView: View {
         VStack(alignment: .leading, spacing: AppSpacing.section) {
             if !prompt.variableNames.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("填写变量").font(AppTypography.section).foregroundColor(.textPrimary)
+                    AppSectionHeader(title: "填写填空项", detail: "填齐后即可生成并复制，结果会实时更新。")
                     ForEach(prompt.variableNames, id: \.self) { name in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(name).font(AppTypography.secondary.weight(.medium)).foregroundColor(.textSecondary)
@@ -147,9 +148,7 @@ struct PromptUsageView: View {
             }
 
             VStack(alignment: .leading, spacing: 12) {
-                Text(prompt.isTemplate ? "生成结果" : "提示词内容")
-                    .font(AppTypography.section)
-                    .foregroundColor(.textPrimary)
+                AppSectionHeader(title: prompt.isTemplate ? "生成结果" : "提示词内容")
                 Text(prompt.rendered(with: values))
                     .accessibilityIdentifier("prompt.result")
                     .textSelection(.enabled)
@@ -159,9 +158,7 @@ struct PromptUsageView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if !missing.isEmpty {
-                    Text("待填写：\(missing.joined(separator: "、"))")
-                        .font(AppTypography.caption)
-                        .foregroundColor(.textSecondary)
+                    AppStatusMessage(message: "待填写：\(missing.joined(separator: "、"))", isError: false)
                 }
 
                 Button {
